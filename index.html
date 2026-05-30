@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Nemo Player</title>
+    <script src="eruda.js"></script>
+    <script>eruda.init();</script>
+    <style>
+        * { margin: 0; padding: 0; }
+        body { background: #1a1a2e; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; }
+        #fps { position: fixed; top: 10px; left: 10px; color: #0f0; font: bold 14px monospace; background: rgba(0,0,0,0.7); padding: 6px 12px; border-radius: 4px; z-index: 10; }
+        #timer { position: fixed; top: 10px; right: 10px; color: #fff; font: bold 14px monospace; background: rgba(0,0,0,0.7); padding: 6px 12px; border-radius: 4px; z-index: 10; }
+        canvas { border-radius: 8px; box-shadow: 0 0 30px rgba(0,0,0,0.5); }
+    </style>
+</head>
+<body>
+    <div id="fps">FPS: --</div>
+    <div id="timer">0.00s</div>
+    <script src="https://cdn.jsdelivr.net/npm/pixi.js-legacy@5.3.12/dist/pixi-legacy.min.js"></script>
+    <script type="module" src="src/main.js"></script>
+</body>
+</html>
