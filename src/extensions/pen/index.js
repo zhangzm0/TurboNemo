@@ -1,16 +1,18 @@
 // src/extensions/pen/index.js
+import { Pen, stringToColor } from './pen.js';
+
 export default {
     name: 'pen',
     version: '1.0.0',
     blocks: {
         'self_pen_down': {
             generator(c, b) {
-                return `    self._penDown = true;\n` + c.compileNext(b);
+                return `    self._pen.line(self.sprite.x, self.sprite.y);\n    self._pen.down = true;\n` + c.compileNext(b);
             },
         },
         'self_pen_up': {
             generator(c, b) {
-                return `    self._penDown = false;\n` + c.compileNext(b);
+                return `    self._pen.up();\n` + c.compileNext(b);
             },
         },
         'clear_drawing': {
@@ -21,19 +23,19 @@ export default {
         'self_set_pen_size': {
             generator(c, b) {
                 const size = c.compileValue(b, 'size');
-                return `    self._penSize = ${size};\n` + c.compileNext(b);
+                return `    self._pen.size = ${size};\n` + c.compileNext(b);
             },
         },
         'self_change_pen_size': {
             generator(c, b) {
                 const steps = c.compileValue(b, 'steps');
-                return `    self._penSize += ${steps};\n` + c.compileNext(b);
+                return `    self._pen.size += ${steps};\n` + c.compileNext(b);
             },
         },
         'self_set_pen_color': {
             generator(c, b) {
                 const color = b.querySelector(':scope > field[name="color"]')?.textContent.trim() || '#cc66cc';
-                return `    self._penColor = '${color}';\n` + c.compileNext(b);
+                return `    self._pen.color = '${color}';\n` + c.compileNext(b);
             },
         },
         'self_set_pen_color_property': {
@@ -46,19 +48,39 @@ export default {
                 return c.compileNext(b) || '';
             },
         },
+        'set_fill_path': {
+            generator(c, b) {
+                const point = c.extractParams(b).point;
+                if (point === 'start') {
+                    return `    self._pen.fillStart(self.sprite.x, self.sprite.y);\n` + c.compileNext(b);
+                }
+                return `    self._pen.fillEnd(self.sprite.x, self.sprite.y);\n` + c.compileNext(b);
+            },
+        },
+        'set_fill_style': {
+            generator(c, b) {
+                const color = b.querySelector(':scope > field[name="style"]')?.textContent.trim() || '#cc66cc';
+                return `    self._pen.fillColor = '${color}';\n` + c.compileNext(b);
+            },
+        },
+        'stamp': {
+            generator(c, b) {
+                const text = c.compileValue(b, 'TEXT') || "''";
+                const size = c.compileValue(b, 'SIZE') || '24';
+                return `    self._pen.stamp(${text}, ${size}, self.sprite.x, self.sprite.y);\n` + c.compileNext(b);
+            },
+        },
     },
     install(core) {
-        // 每个屏幕加画笔层，层级在 actorLayer 之下
+        // 每个屏幕加画笔层
         core.screenHook('penLayer', (screen) => {
             const penLayer = new PIXI.Graphics();
             penLayer.name = 'pen';
-            // 插入到 actorLayer 下面
             const actorIdx = screen.container.getChildIndex(screen.actorLayer);
             screen.container.addChildAt(penLayer, actorIdx);
             return penLayer;
         });
 
-        // 给已存在的屏幕补上
         for (const screen of core.screenManager.list) {
             if (!screen.penLayer) {
                 const penLayer = new PIXI.Graphics();
@@ -69,49 +91,26 @@ export default {
             }
         }
 
-        // actorHook：画笔状态
-        core.actorHook('_penDown', () => false);
-        core.actorHook('_penSize', () => 2);
-        core.actorHook('_penColor', () => '#cc66cc');
-        core.actorHook('_penLastX', () => null);
-        core.actorHook('_penLastY', () => null);
+        // actorHook：每个角色一个 Pen 实例
+        core.actorHook('_pen', (actor) => {
+            const screen = core.screenManager.getCurrent();
+            return new Pen(screen?.penLayer);
+        });
 
-        // 给已存在角色补上
         for (const actor of core.actorManager.list) {
-            if (actor._penDown === undefined) actor._penDown = false;
-            if (!actor._penSize) actor._penSize = 2;
-            if (!actor._penColor) actor._penColor = '#cc66cc';
-            if (actor._penLastX === undefined) actor._penLastX = null;
-            if (actor._penLastY === undefined) actor._penLastY = null;
+            if (!actor._pen) {
+                const screen = core.screenManager.getCurrent();
+                actor._pen = new Pen(screen?.penLayer);
+            }
         }
 
-        // 每帧画线
+        // 每帧追踪位置
         core.app.ticker.add(() => {
             for (const actor of core.actorManager.list) {
-                if (!actor._penDown) {
-                    actor._penLastX = null;
-                    actor._penLastY = null;
-                    continue;
-                }
-                const screen = core.screenManager.getCurrent();
-                if (!screen?.penLayer || !actor.sprite.visible) continue;
-                const x = actor.sprite.x;
-                const y = actor.sprite.y;
-                if (actor._penLastX !== null && actor._penLastY !== null) {
-                    screen.penLayer.lineStyle(actor._penSize, stringToColor(actor._penColor), 1);
-                    screen.penLayer.moveTo(actor._penLastX, actor._penLastY);
-                    screen.penLayer.lineTo(x, y);
-                }
-                actor._penLastX = x;
-                actor._penLastY = y;
+                if (!actor._pen || !actor._pen.down) continue;
+                if (!actor.sprite || !actor.sprite.visible) continue;
+                actor._pen.line(actor.sprite.x, actor.sprite.y);
             }
         });
     },
 };
-
-function stringToColor(str) {
-    if (str.startsWith('#')) {
-        return parseInt(str.slice(1), 16);
-    }
-    return 0xcc66cc;
-}

@@ -37,16 +37,25 @@ ${body}    }
             const body = c.compileStatement(b, 'DO') || c.compileNext(b);
             if (!body) return `    // when (empty)\n`;
             return `\
-    while (!(${cond})) {
-        yield __core__._YIELD_FRAME;
-    }
-${body}`;
+        while (true) {
+            while (!(${cond})) {
+                yield __core__._YIELD_FRAME;
+            }
+    ${body}    \nyield __core__._YIELD_FRAME;}
+    `;
         },
     },
     'scenes_index_get': {
         generator(c, b) {
-            const f = b.querySelector('field[name="index"]');
-            return f ? f.textContent.trim() : '1';
+            const f = b.querySelector(':scope > field[name="index"]');
+            const val = f ? f.textContent.trim() : '1';
+            if (val === '__next_scene') {
+                return `(__screens__.getCurrentIndex() + 1)`;
+            }
+            if (val === '__previous_scene') {
+                return `(__screens__.getCurrentIndex() - 1)`;
+            }
+            return val;
         },
     },
     'set_scene_by_index': {

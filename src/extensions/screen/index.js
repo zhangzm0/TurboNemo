@@ -30,6 +30,8 @@ export default {
             core.eventBus.emit('screen:switched', { from: from?.name, to: to?.name });
             core.eventBus.emit(`screen:activated:${to.name}`);
         };
+        core.screenManager.width = core.width;
+        core.screenManager.height = core.height;
         core.globalHook('__screens__', () => core.screenManager);
         core.screenHook('broadcast', () => ({
             send(msg) { core.eventBus.emit(`broadcast:${msg}`, { message: msg }); },

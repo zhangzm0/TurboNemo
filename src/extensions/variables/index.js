@@ -107,7 +107,7 @@ export default {
 
         function createDisplay(id, spec) {
             const el = document.createElement('div');
-            el.style.cssText = 'position:absolute;font-size:14px;color:#fff;background:rgba(0,0,0,0.6);padding:2px 8px;border-radius:4px;white-space:nowrap;';
+            el.style.cssText = 'position:absolute;font-size:14px;color:#fff;background:rgba(0,0,0,0.6);padding:2px 8px;border-radius:4px;white-space:nowrap;max-width:200px;overflow:hidden;text-overflow:ellipsis;';
             const pos = nemoToScreen(spec.position?.x ?? 0, spec.position?.y ?? 0);
             el.style.left = pos.left + 'px';
             el.style.top = pos.top + 'px';

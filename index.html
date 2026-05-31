@@ -41,6 +41,40 @@
             z-index: 10;
             pointer-events: none;
         }
+        #info {
+            position: fixed;
+            bottom: 10px;
+            right: 10px;
+            color: #ccc;
+            font: 12px sans-serif;
+            background: rgba(0,0,0,0.6);
+            padding: 4px 10px;
+            border-radius: 4px;
+            z-index: 10;
+            pointer-events: none;
+        }
+        #loading {
+            position: fixed;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            color: #fff;
+            font: 14px sans-serif;
+            text-align: center;
+            z-index: 100;
+            pointer-events: none;
+            transition: opacity 0.3s;
+        }
+        #loading .spinner {
+            width: 40px; height: 40px;
+            margin: 0 auto 12px;
+            border: 3px solid rgba(255,255,255,0.2);
+            border-top-color: #fff;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+        #loading .title { font-size: 18px; font-weight: bold; margin-bottom: 4px; }
+        #loading .detail { font-size: 12px; color: #aaa; margin-top: 8px; }
+        @keyframes spin { to { transform: rotate(360deg); } }
         canvas {
             border-radius: 8px;
             box-shadow: 0 0 30px rgba(0,0,0,0.5);
@@ -52,6 +86,12 @@
 <body>
     <div id="fps">FPS: --</div>
     <div id="timer">0.00s</div>
+    <div id="info"></div>
+    <div id="loading">
+        <div class="spinner"></div>
+        <div class="title">TurboNemo</div>
+        <div class="detail" id="loadingDetail">正在连接...</div>
+    </div>
     <script src="https://cdn.jsdelivr.net/npm/pixi.js-legacy@5.3.12/dist/pixi-legacy.min.js"></script>
     <script type="module" src="src/main.js"></script>
 </body>

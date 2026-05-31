@@ -1,9 +1,34 @@
 // src/main.js
 import { NemoPlayer } from './core/nemo-player.js';
 
-// 从 URL 参数获取作品 ID
 const params = new URLSearchParams(window.location.search);
-const workId = params.get('id') || '272459552'; // 默认作品
+const workId = params.get('id') || '272459552';
+
+const loadingEl = document.getElementById('loading');
+const loadingDetail = document.getElementById('loadingDetail');
+const infoEl = document.getElementById('info');
+
+function setLoading(title, detail) {
+    if (detail) loadingDetail.textContent = detail;
+}
+
+setLoading('TurboNemo', '正在获取作品信息...');
+
+// 获取作品信息
+const infoPromise = fetch(`https://api.codemao.cn/creation-tools/v1/works/${workId}`)
+    .then(r => r.json())
+    .then(data => {
+        document.title = `${data.work_name} - TurboNemo`;
+        infoEl.textContent = `By ${data.user_info.nickname}`;
+        setLoading(data.work_name, `by ${data.user_info.nickname}`);
+        return data;
+    })
+    .catch(() => {
+        setLoading('TurboNemo', '无法获取作品信息');
+        return null;
+    });
+
+setLoading('TurboNemo', '正在初始化引擎...');
 
 const core = new NemoPlayer({ container: 'body', width: 562, height: 900 });
 
@@ -11,29 +36,36 @@ const core = new NemoPlayer({ container: 'body', width: 562, height: 900 });
 core.use((await import('./extensions/screen/index.js')).default);
 core.use((await import('./extensions/actor/index.js')).default);
 
-// 动态加载扩展
+// 并行加载所有扩展
 const extList = [
-    'motion',
-    'looks',
-    'operators',
-    'variables',
-    'sensing',
-    'clone',
-    'sound',
-    'pen',
-    'procedures',
-    'broadcast',
+    'motion', 'looks', 'operators', 'variables', 'sensing',
+    'clone', 'sound', 'pen', 'procedures', 'broadcast',
 ];
 
-for (const name of extList) {
-    try {
-        const mod = await import(`./extensions/${name}/index.js`);
-        core.use(mod.default);
-        console.log(`✅ ${name}`);
-    } catch (e) {
-        console.warn(`⚠️ ${name} 加载失败:`, e.message);
+setLoading('TurboNemo', '正在加载扩展...');
+
+let extLoaded = 0;
+const extModules = await Promise.all(
+    extList.map(name =>
+        import(`./extensions/${name}/index.js`)
+            .then(mod => {
+                extLoaded++;
+                setLoading('TurboNemo', `正在加载扩展... (${extLoaded}/${extList.length})`);
+                return { name, mod: mod.default };
+            })
+            .catch(e => {
+                console.warn(`⚠️ ${name} 加载失败:`, e.message);
+                return null;
+            })
+    )
+);
+
+extModules.forEach(item => {
+    if (item) {
+        core.use(item.mod);
+        console.log(`✅ ${item.name}`);
     }
-}
+});
 
 // FPS
 const fpsEl = document.getElementById('fps');
@@ -46,6 +78,22 @@ core.app.ticker.add(() => {
     timerEl.textContent = elapsed.toFixed(2) + 's';
 });
 
-core.loadFromWorkId(parseInt(workId)).then(() => console.log('✅ 就绪'));
+// 监听加载进度
+core.eventBus.on('loader:before', ({ total }) => {
+    setLoading('TurboNemo', `正在下载资源... (0/${total})`);
+});
 
+core.eventBus.on('loader:asset', ({ loaded, total }) => {
+    setLoading('TurboNemo', `正在下载资源... (${loaded}/${total})`);
+});
+
+// 加载作品
+setLoading('TurboNemo', '正在编译脚本...');
+await core.loadFromWorkId(parseInt(workId));
+
+// 隐藏加载页
+loadingEl.style.opacity = '0';
+setTimeout(() => loadingEl.remove(), 300);
+
+console.log('✅ 就绪');
 window.core = core;

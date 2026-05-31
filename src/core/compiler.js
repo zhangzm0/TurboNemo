@@ -67,14 +67,21 @@ ${body}
         return '';
     }
 
+    // compiler.js - compileValue
     compileValue(blockEl, name) {
         const valueEl = blockEl.querySelector(`:scope > value[name="${name}"]`);
         if (!valueEl) return '0';
         const blocks = valueEl.querySelectorAll(':scope > block');
-        if (blocks.length > 0) return this.compileBlock(blocks[blocks.length - 1]);
-        const shadow = valueEl.querySelector(':scope > shadow');
-        if (shadow) return this.compileBlock(shadow);
-        return '0';
+        let code;
+        if (blocks.length > 0) {
+            code = this.compileBlock(blocks[blocks.length - 1]);
+        } else {
+            const shadow = valueEl.querySelector(':scope > shadow');
+            if (shadow) code = this.compileBlock(shadow);
+            else return '0';
+        }
+        // 统一包裹括号
+        return `(${code})`;
     }
 
     extractParams(blockEl) {

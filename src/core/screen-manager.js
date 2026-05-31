@@ -18,7 +18,8 @@ class ScreenManager {
         const bg = new PIXI.TilingSprite(bgTexture, bgTexture.width, bgTexture.height);
         bg.name = 'bg';
         bg.anchor.set(0.5, 0.5);
-        const scale = w > h ? w / bgTexture.width: h / bgTexture.height;
+        const scale = Math.max(w / bgTexture.width, h / bgTexture.height);
+        // const scale = bgTexture.width > bgTexture.height ? w / bgTexture.width: h / bgTexture.height;
         bg.scale.set(scale, scale);
         
         const background = new Background(bg, name);
@@ -60,6 +61,10 @@ class ScreenManager {
             screen.container.addChild(layer);
             screen.layers[name] = layer;
         }
+    }
+    // screen-manager.js
+    getCurrentIndex() {
+        return this.list.indexOf(this._current) + 1;
     }
 }
 

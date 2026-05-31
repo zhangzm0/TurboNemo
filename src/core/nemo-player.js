@@ -118,6 +118,7 @@ class NemoPlayer {
                 : this.screenManager.getCurrent();
             if (!screen) continue;
             scripts.forEach((script, i) => {
+                console.log('编译产物', script.code)
                 const fn = new Function(`return (${script.code})`)();
                 const gen = fn(actor, screen, this.actorManager, this.screenManager, globalObj, this);
                 const taskId = `${actorData.name}_${i}`;

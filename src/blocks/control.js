@@ -66,4 +66,25 @@ ${body}        yield __core__._YIELD_FRAME;
             return code;
         },
     },
+    
+    // blocks/control.js 里加上
+
+    'repeat_forever_until': {
+        generator(c, b) {
+            const cond = c.compileValue(b, 'condition');
+            const body = c.compileStatement(b, 'DO');
+            return `\
+        while (true) {
+    ${body}        if (${cond}) break;
+            yield __core__._YIELD_FRAME;
+        }
+    ` + c.compileNext(b);
+        },
+    },
+
+    'break': {
+        generator(c, b) {
+            return `    break;\n` + c.compileNext(b);
+        },
+    },
 };
