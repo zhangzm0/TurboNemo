@@ -49,7 +49,7 @@ core.use((await import('./extensions/actor/index.js')).default);
 
 // 并行加载所有扩展
 const extList = [
-    'motion', 'looks', 'operators', 'variables', 'sensing',
+    'motion', 'looks', 'operators', 'data', 'sensing',
     'clone', 'sound', 'pen', 'procedures', 'broadcast',
 ];
 

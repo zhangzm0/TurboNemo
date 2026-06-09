@@ -86,7 +86,7 @@ export default {
             if (!procData.blocksXML) continue;
             const scripts = core.compiler.compile(procData.blocksXML, '__global__proc__', 'actor');
             for (const script of scripts) {
-                try {
+                try {console.log(script.code);
                     const fn = new Function(`return (${script.code})`)();
                     const gen = fn(dummySelf, dummyScreen, core.actorManager, core.screenManager, globalObj, core);
                     let r = gen.next();

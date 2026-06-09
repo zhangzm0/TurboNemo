@@ -1,4 +1,77 @@
 // src/extensions/variables/index.js
+
+// ---------- 样式常量 ----------
+const VAR_STYLE = {
+    BG_COLOR: '#FF9834',
+    BG_SHADOW: '#F28926',
+    NAME_COLOR: '#624026',
+    NAME_SIZE: '21px',
+    VALUE_COLOR: '#45372E',
+    VALUE_SIZE: '24px',
+    VALUE_BG: '#FFFFFF',
+    VALUE_BORDER: '#F28926',
+    HEIGHT: 54,
+    RADIUS: 27,
+    VALUE_MIN_WIDTH: 69,
+    VALUE_RADIUS: 23,
+    PADDING: 18,
+    GAP: 12,
+};
+
+function createVarElement(spec) {
+    const container = document.createElement('div');
+    container.style.cssText = `
+        position: absolute;
+        display: flex;
+        align-items: center;
+        height: 40px;
+        border-radius: 20px;
+        background: ${VAR_STYLE.BG_COLOR};
+        box-shadow: 2px 2px 3px rgba(0,0,0,0.2), inset 0 -1.5px 0 ${VAR_STYLE.BG_SHADOW};
+        padding: 0 14px;
+        font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
+        pointer-events: none;
+        white-space: nowrap;
+    `;
+
+    const nameEl = document.createElement('span');
+    nameEl.style.cssText = `
+        font-size: 16px;
+        color: ${VAR_STYLE.NAME_COLOR};
+        font-weight: 500;
+        margin-right: 8px;
+        line-height: 40px;
+    `;
+    nameEl.textContent = spec.name;
+
+    const valueEl = document.createElement('span');
+    valueEl.style.cssText = `
+        font-size: 18px;
+        color: ${VAR_STYLE.VALUE_COLOR};
+        font-weight: 500;
+        background: ${VAR_STYLE.VALUE_BG};
+        border: 1.5px solid ${VAR_STYLE.VALUE_BORDER};
+        border-radius: 16px;
+        padding: 2px 10px;
+        min-width: 52px;
+        text-align: center;
+        line-height: 26px;
+    `;
+    valueEl.textContent = spec.value ?? 0;
+
+    container.appendChild(nameEl);
+    container.appendChild(valueEl);
+
+    return { container, nameEl, valueEl };
+}
+
+// ---------- 其余工具函数 ----------
+function clamp(value, min, max) {
+    if (value < min) return min;
+    if (value > max) return max;
+    return value;
+}
+
 export default {
     name: 'variables',
     version: '1.0.0',
@@ -73,12 +146,10 @@ export default {
             return { ...template };
         });
 
-        // ---------- 给已存在角色补 _vars ----------
+        // 给已存在角色和背景补 _vars
         for (const actor of core.actorManager.list) {
             if (!actor._vars) actor._vars = { ...template };
         }
-
-        // ---------- 给背景补 _vars ----------
         for (const screen of core.screenManager.list) {
             if (screen.bg && !screen.bg._vars) {
                 screen.bg._vars = { ...template };
@@ -105,19 +176,14 @@ export default {
             };
         }
 
-        function createDisplay(id, spec) {
-            const el = document.createElement('div');
-            el.style.cssText = 'position:absolute;font-size:14px;color:#fff;background:rgba(0,0,0,0.6);padding:2px 8px;border-radius:4px;white-space:nowrap;max-width:200px;overflow:hidden;text-overflow:ellipsis;';
-            const pos = nemoToScreen(spec.position?.x ?? 0, spec.position?.y ?? 0);
-            el.style.left = pos.left + 'px';
-            el.style.top = pos.top + 'px';
-            el.style.display = spec.visible ? '' : 'none';
-            containerEl.appendChild(el);
-            displays[id] = { el, spec, _name: spec.name + ': ', _last: undefined };
-        }
-
         for (const [id, spec] of Object.entries(self._specs)) {
-            createDisplay(id, spec);
+            const { container, nameEl, valueEl } = createVarElement(spec);
+            const pos = nemoToScreen(spec.position?.x ?? 0, spec.position?.y ?? 0);
+            container.style.left = pos.left + 'px';
+            container.style.top = pos.top + 'px';
+            container.style.display = spec.visible ? '' : 'none';
+            containerEl.appendChild(container);
+            displays[id] = { el: container, nameEl, valueEl, spec, _last: undefined };
         }
 
         const varDisplay = {
@@ -141,7 +207,7 @@ export default {
                         : disp.spec.value;
                     if (disp._last !== val) {
                         disp._last = val;
-                        disp.el.textContent = disp._name + val;
+                        disp.valueEl.textContent = val ?? 0;
                     }
                 }
             },
@@ -149,10 +215,10 @@ export default {
 
         core.globalHook('__varDisplay__', () => varDisplay);
 
-        // ---------- 每帧更新 ----------
+        // 每帧更新
         core.app.ticker.add(() => varDisplay.update());
 
-        // ---------- 窗口大小变化时重新定位 ----------
+        // 窗口大小变化时重新定位
         window.addEventListener('resize', () => {
             for (const [id, disp] of Object.entries(displays)) {
                 const pos = nemoToScreen(disp.spec.position?.x ?? 0, disp.spec.position?.y ?? 0);

@@ -53,8 +53,8 @@ export default {
         'logic_compare': {
             generator(c, b) {
                 const op = c.extractParams(b).OP, a = c.compileValue(b, 'A'), b2 = c.compileValue(b, 'B');
-                const ops = { EQ: '===', NEQ: '!==', LT: '<', LTE: '<=', GT: '>', GTE: '>=' };
-                return `(${a} ${ops[op] || '==='} ${b2})`;
+                const ops = { EQ: '==', NEQ: '!=', LT: '<', LTE: '<=', GT: '>', GTE: '>=' };
+                return `(${a} ${ops[op] || '=='} ${b2})`;
             },
         },
         'logic_operation': {
