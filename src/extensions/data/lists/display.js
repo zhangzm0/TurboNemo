@@ -12,9 +12,9 @@ const CLOSE_BG =
     "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAABBElEQVRYR+1WwQ3CMAxsugd8kPjCBEiMAoPBKEhMAF8kPrBHgowUqQpO4nNC00f7jOy7i+1LbbrGn2nM380C2AocdqsFteZ8fb5rtCiF9yOAgp0xWyLu+/51ujzuJSKO+/XGWrskDOPcLbxUUkCpiCG5WAAFhomaSkgxoi6QAnDtQXKTNkSAvBA0J/sOIIBIrBecFSCdCQ35dzClFksRaMkhAbFK0Ln3uca24grEhmxYQY1dYQFcJTQ3h4YwnJOw56MK4Mi9wL+3gJv20YawqQ0lPpfEcG9O1gUIMBIrcoEGEM2Z5u8YvUXJTjC9laz5UkrlbLqWS/eDWnHZd6AWUQxnFvABkpFIMD6R4JQAAAAASUVORK5CYII=";
 
 function truncate(str, max) {
-    if (!str) return '';
+    if (!str) return "";
     if (str.length <= max) return str;
-    return str.substring(0, max - 1) + '…' + str.substring(str.length - 1);
+    return str.substring(0, max - 1) + "…" + str.substring(str.length - 1);
 }
 
 function installListDisplay(core) {
@@ -23,7 +23,7 @@ function installListDisplay(core) {
     let currentIndex = -1;
     let dirty = false;
 
-    // ========== 独立容器 ==========
+    // ========== 根容器 ==========
     const container = document.createElement("div");
     container.style.cssText = `
         position:absolute; top:0; left:0;
@@ -32,132 +32,95 @@ function installListDisplay(core) {
     `;
     core.stage.htmlContainer.appendChild(container);
 
+    // ========== 遮罩 ==========
     const mask = document.createElement("div");
     mask.style.cssText = `
         display:none;
-        position:absolute; top:0; left:0;
+        position:absolute;
+        top:0; left:0;
         width:100%; height:100%;
-        background:rgba(0,0,0,0.3); z-index:9;
+        background:rgba(0,0,0,0.3);
+        z-index:9;
         pointer-events:auto;
+        transform:translate(-50%, -50%);
     `;
-    mask.addEventListener('click', () => closePanel());
+    mask.addEventListener("click", () => closePanel());
     container.appendChild(mask);
 
-    const rootPanel = document.createElement("div");
-    rootPanel.style.cssText = `
+    // ========== 裁剪包裹器（固定宽度，居中，隐藏溢出） ==========
+    const clipWrapper = document.createElement("div");
+    clipWrapper.style.cssText = `
         display:none;
         position:absolute;
         top:-9%; left:0%;
         transform:translate(-50%, -50%);
+        width:100%;
+        height:560px;  /* 确保容纳标题栏+内容区+底部阴影 */
+        overflow:hidden;
         z-index:10;
+        pointer-events:none;
+    `;
+    container.appendChild(clipWrapper);
+
+    // ========== 面板根容器（在裁剪包裹器内部滑动） ==========
+    const rootPanel = document.createElement("div");
+    rootPanel.style.cssText = `
+        position:relative;
         pointer-events:auto;
-        flex-direction:column;
-        align-items:center;
     `;
-    container.appendChild(rootPanel);
+    clipWrapper.appendChild(rootPanel);
 
-    // ========== 标题栏 ==========
-    const titleBar = document.createElement("div");
-    titleBar.style.cssText = `
-        width:455px; height:78px;
-        position:relative; top:30px; z-index:1;
-        display:flex; flex-direction:column;
-        justify-content:center; align-items:center;
-        font-family:PingFangSC-Medium,'PingFang SC','Microsoft YaHei',sans-serif;
-        font-size:27px; color:#ffffff; font-weight:bold;
-        background:url(${TITLE_BG}) no-repeat;
-        background-size:cover;
+    // ========== 水平排列容器 ==========
+    const panelsWrapper = document.createElement("div");
+    panelsWrapper.style.cssText = `
+        display:flex;
+        flex-direction:row;
+        transition: transform 0.3s ease;
     `;
-    rootPanel.appendChild(titleBar);
+    rootPanel.appendChild(panelsWrapper);
 
-    const titleText = document.createElement("span");
-    titleBar.appendChild(titleText);
-
-    const titleEntity = document.createElement("span");
-    titleEntity.style.cssText = 'font-size:18px;line-height:21px;opacity:0.5;';
-    titleBar.insertBefore(titleEntity, titleText);
-
-    const closeBtn = document.createElement("div");
-    closeBtn.style.cssText = `
-        width:24px; height:24px;
-        position:absolute; right:12px; top:32px;
-        background:url(${CLOSE_BG}) no-repeat;
-        background-size:contain;
-        cursor:pointer;
-    `;
-    closeBtn.addEventListener('click', () => closePanel());
-    titleBar.appendChild(closeBtn);
-
-    // ========== 内容区 ==========
-    const content = document.createElement("div");
-    content.style.cssText = `
-        position:relative;
-        width:393px; height:449px;
-        border-radius:24px;
-        background:#ffffff;
-        display:flex; flex-direction:column;
-        align-items:center; justify-content:flex-start;
-        padding-top:30px;
-        margin-top:-30px;
-        box-sizing:border-box;
-    `;
-    rootPanel.appendChild(content);
-
-    const contentBg = document.createElement("div");
-    contentBg.style.cssText = `
-        position:absolute; z-index:-1;
-        left:-18px; top:-18px; right:-18px; bottom:-18px;
-        border-radius:33px;
-        border:#ffffff solid 2px;
-        background:linear-gradient(#ffdb3f, #fdb835);
-    `;
-    content.appendChild(contentBg);
-
-    const listEl = document.createElement("ul");
-    listEl.style.cssText = `
-        width:100%; height:100%;
-        overflow-y:auto; overflow-x:hidden;
-        font-family:PingFangSC-Regular,'PingFang SC','Microsoft YaHei',sans-serif;
-        font-size:24px; color:#333333;
-        list-style-type:none;
-        border-radius:24px;
-        margin:0; padding:0;
-        position:relative;
-    `;
-    content.appendChild(listEl);
-
-    // ========== 左右箭头 ==========
+    // ========== 左右箭头（放在 container 上，相对于裁剪区域精准定位） ==========
     const prevBtn = document.createElement("div");
-    prevBtn.innerHTML = '◀';
+    prevBtn.innerHTML = "◀";
     prevBtn.style.cssText = `
         display:none;
-        position:absolute; left:-40px; top:50%;
-        transform:translateY(-50%);
+        position:absolute;
+        top:-9%; left:0%;
+        transform:translate(-50%, -50%) translateX(-257px);
         cursor:pointer; font-size:24px; color:#624026;
-        user-select:none; pointer-events:auto;
+        user-select:none; pointer-events:auto; z-index:11;
     `;
-    prevBtn.addEventListener('click', () => { if (currentIndex > 0) showList(currentIndex - 1); });
-    rootPanel.appendChild(prevBtn);
+    prevBtn.addEventListener("click", () => {
+        if (currentIndex > 0) showList(currentIndex - 1);
+    });
+    container.appendChild(prevBtn);
 
     const nextBtn = document.createElement("div");
-    nextBtn.innerHTML = '▶';
+    nextBtn.innerHTML = "▶";
     nextBtn.style.cssText = `
         display:none;
-        position:absolute; right:-40px; top:50%;
-        transform:translateY(-50%);
+        position:absolute;
+        top:-9%; left:0%;
+        transform:translate(-50%, -50%) translateX(257px);
         cursor:pointer; font-size:24px; color:#624026;
-        user-select:none; pointer-events:auto;
+        user-select:none; pointer-events:auto; z-index:11;
     `;
-    nextBtn.addEventListener('click', () => { if (currentIndex < listIds.length - 1) showList(currentIndex + 1); });
-    rootPanel.appendChild(nextBtn);
+    nextBtn.addEventListener("click", () => {
+        if (currentIndex < listIds.length - 1) showList(currentIndex + 1);
+    });
+    container.appendChild(nextBtn);
 
-    // ========== 标签 ==========
+    // ========== 标签层 ==========
     const labelLayer = core.stage.globalHtmlLayer;
 
+    const PANEL_WIDTH = 455;
+
+    // ========== 创建每个列表的独立面板 ==========
     for (const [id, spec] of Object.entries(_specs)) {
         if (!isList(id)) continue;
         listIds.push(id);
 
+        // 标签
         const label = document.createElement("div");
         label.style.cssText = `
             position:absolute;
@@ -169,63 +132,181 @@ function installListDisplay(core) {
             font-size:16px; color:#624026; font-weight:500;
             white-space:nowrap; pointer-events:auto; cursor:pointer;
         `;
-        label.style.left = (spec.position?.x ?? 0) + 'px';
-        label.style.top = -(spec.position?.y ?? 0) + 'px';
-        label.style.display = spec.visible ? '' : 'none';
-        const entityName = spec.is_global === false ? (spec.entity_name || '') : '';
-        label.textContent = (entityName ? entityName + ' · ' : '') + spec.name;
-        label.addEventListener('click', () => {
+        label.style.left = (spec.position?.x ?? 0) + "px";
+        label.style.top = -(spec.position?.y ?? 0) + "px";
+        label.style.display = spec.visible ? "" : "none";
+        const entityName =
+            spec.is_global === false ? spec.entity_name || "" : "";
+        label.textContent = (entityName ? entityName + " · " : "") + spec.name;
+        label.addEventListener("click", () => {
             const idx = listIds.indexOf(id);
             if (idx !== -1) showList(idx);
         });
         labelLayer.appendChild(label);
 
-        displays[id] = { label, spec, pool: [] };
+        // 面板
+        const panel = createListPanel(id, spec, entityName);
+        panelsWrapper.appendChild(panel);
+
+        displays[id] = { label, spec, panel, pool: [] };
     }
 
-    // ========== 面板切换 ==========
+    if (listIds.length === 0) return;
+
+    // ========== 创建单个列表面板 ==========
+    function createListPanel(id, spec, entityName) {
+        const panel = document.createElement("div");
+        panel.style.cssText = `
+            flex-shrink:0;
+            width:${PANEL_WIDTH}px;
+            display:flex;
+            flex-direction:column;
+            align-items:center;
+            transform: scale(0.8);
+            filter: brightness(0.7);
+            transition: transform 200ms ease-out, filter 200ms ease-out;
+            margin-right: -30px;
+        `;
+
+        const titleBar = document.createElement("div");
+        titleBar.style.cssText = `
+            width:455px; height:78px;
+            position:relative; top:30px; z-index:1;
+            display:flex; flex-direction:column;
+            justify-content:center; align-items:center;
+            font-family:PingFangSC-Medium,'PingFang SC','Microsoft YaHei',sans-serif;
+            font-size:27px; color:#ffffff; font-weight:bold;
+            background:url(${TITLE_BG}) no-repeat;
+            background-size:cover;
+        `;
+        panel.appendChild(titleBar);
+
+        const titleText = document.createElement("span");
+        titleText.textContent = truncate(spec.name, 10);
+        titleBar.appendChild(titleText);
+
+        if (entityName) {
+            const titleEntity = document.createElement("span");
+            titleEntity.style.cssText =
+                "font-size:18px;line-height:21px;opacity:0.5;";
+            titleEntity.textContent = truncate(entityName, 4);
+            titleBar.insertBefore(titleEntity, titleText);
+        }
+
+        // 关闭按钮
+        const closeBtn = document.createElement("div");
+        closeBtn.style.cssText = `
+            width:24px; height:24px;
+            position:absolute; right:12px; top:32px;
+            background:url(${CLOSE_BG}) no-repeat;
+            background-size:contain;
+            cursor:pointer;
+        `;
+        closeBtn.addEventListener("click", (e) => {
+            e.stopPropagation();
+            closePanel();
+        });
+        titleBar.appendChild(closeBtn);
+
+        const content = document.createElement("div");
+        content.style.cssText = `
+            position:relative;
+            width:393px; height:449px;
+            border-radius:24px;
+            background:#ffffff;
+            display:flex; flex-direction:column;
+            align-items:center; justify-content:flex-start;
+            padding-top:0px;
+            margin-top:0px;
+            box-sizing:border-box;
+        `;
+        panel.appendChild(content);
+
+        const contentBg = document.createElement("div");
+        contentBg.style.cssText = `
+            position:absolute; z-index:-1;
+            left:-18px; top:-18px; right:-18px; bottom:-18px;
+            border-radius:33px;
+            border:#ffffff solid 2px;
+            background:linear-gradient(#ffdb3f, #fdb835);
+        `;
+        content.appendChild(contentBg);
+
+        const listEl = document.createElement("ul");
+        listEl.style.cssText = `
+            width:100%; height:100%;
+            overflow-y:auto; overflow-x:hidden;
+            font-family:PingFangSC-Regular,'PingFang SC','Microsoft YaHei',sans-serif;
+            font-size:24px; color:#333333;
+            list-style-type:none;
+            border-radius:24px;
+            margin:0; padding:0;
+            position:relative;
+        `;
+        content.appendChild(listEl);
+
+        return panel;
+    }
+
+    // ========== 面板切换逻辑 ==========
     function showList(index) {
         if (index < 0 || index >= listIds.length) return;
         currentIndex = index;
-        const spec = displays[listIds[index]]?.spec;
-        if (!spec) return;
 
-        const entityName = spec.is_global === false ? (spec.entity_name || '') : '';
-        titleEntity.textContent = entityName ? truncate(entityName, 4) : '';
-        titleEntity.style.display = entityName ? '' : 'none';
-        titleText.textContent = truncate(spec.name, 10);
+        // 更新所有面板的激活样式
+        for (let i = 0; i < listIds.length; i++) {
+            const p = displays[listIds[i]].panel;
+            if (i === index) {
+                p.style.transform = "scale(1)";
+                p.style.filter = "brightness(1)";
+            } else {
+                p.style.transform = "scale(0.8)";
+                p.style.filter = "brightness(0.7)";
+            }
+        }
 
-        prevBtn.style.display = index > 0 ? '' : 'none';
-        nextBtn.style.display = index < listIds.length - 1 ? '' : 'none';
+        // 计算偏移使激活面板居中于 clipWrapper
+        const step = PANEL_WIDTH - 30; // 425px
+        const activeCenter = index * step + PANEL_WIDTH / 2; // 激活面板中心在 panelsWrapper 中的位置
+        const clipWidth = core.width; // clipWrapper 宽度 = 舞台宽度
+        const offset = clipWidth / 2 - activeCenter; // 偏移量
+        panelsWrapper.style.transform = `translateX(${offset}px)`;
 
-        mask.style.display = '';
-        rootPanel.style.display = 'flex';
+        // 箭头显示/隐藏
+        prevBtn.style.display = index > 0 ? "" : "none";
+        nextBtn.style.display = index < listIds.length - 1 ? "" : "none";
+
+        // 显示遮罩和裁剪包裹器
+        mask.style.display = "";
+        clipWrapper.style.display = "";
+
+        // 强制刷新内容
         dirty = true;
         rebuildIfDirty();
     }
 
     function closePanel() {
-        mask.style.display = 'none';
-        rootPanel.style.display = 'none';
+        mask.style.display = "none";
+        clipWrapper.style.display = "none";
         currentIndex = -1;
     }
 
-    // ========== 行元素构建/更新 ==========
+    // ========== 列表项构建/更新 ==========
     function updateLiContent(li, i, v) {
-        const spans = li.querySelectorAll('span');
+        const spans = li.querySelectorAll("span");
         if (spans[0]) {
             spans[0].textContent = i + 1;
-            spans[0].style.fontSize = i >= 99 ? '18px' : '21px';
+            spans[0].style.fontSize = i >= 99 ? "18px" : "21px";
         }
         if (spans[1]) spans[1].textContent = v;
-        li.style.backgroundColor = i % 2 === 0 ? '#fff9e4' : '#ffffff';
+        li.style.backgroundColor = i % 2 === 0 ? "#fff9e4" : "#ffffff";
     }
 
     function createLiElement(i, v) {
-        const li = document.createElement('li');
-        li.style.cssText = `width:100%;height:53px;display:flex;align-items:center;justify-content:center;position:relative;background-color:${i % 2 === 0 ? '#fff9e4' : '#ffffff'};`;
+        const li = document.createElement("li");
+        li.style.cssText = `width:100%;height:53px;display:flex;align-items:center;justify-content:center;position:relative;background-color:${i % 2 === 0 ? "#fff9e4" : "#ffffff"};`;
         li.innerHTML = `
-            <span style="width:52px;height:30px;font-size:${i >= 99 ? '18px' : '21px'};color:#c6c3c0;font-weight:bold;line-height:30px;text-align:center;padding:0 4px 0 6px;">${i + 1}</span>
+            <span style="width:52px;height:30px;font-size:${i >= 99 ? "18px" : "21px"};color:#c6c3c0;font-weight:bold;line-height:30px;text-align:center;padding:0 4px 0 6px;">${i + 1}</span>
             <span style="flex:1;height:48px;line-height:48px;font-size:21px;text-align:center;padding-right:52px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#43372e;">${v}</span>
         `;
         return li;
@@ -239,7 +320,10 @@ function installListDisplay(core) {
         if (currentIndex < 0) return;
         const id = listIds[currentIndex];
         const list = _template[id]?.value || [];
-        const pool = displays[id].pool;
+        const disp = displays[id];
+        const pool = disp.pool;
+        const listEl = disp.panel.querySelector("ul");
+        if (!listEl) return;
 
         if (list.length === 0) {
             listEl.innerHTML = buildEmptyHTML();
@@ -257,13 +341,12 @@ function installListDisplay(core) {
                 fragment.appendChild(li);
             }
         }
-
-        const bottom = document.createElement('li');
-        bottom.style.cssText = 'position:relative;min-height:48px;border-bottom-left-radius:24px;border-bottom-right-radius:24px;';
+        const bottom = document.createElement("li");
+        bottom.style.cssText =
+            "position:relative;min-height:48px;border-bottom-left-radius:24px;border-bottom-right-radius:24px;";
         bottom.innerHTML = `<img src="${BOTTOM_LINE}" style="width:196px;height:5px;position:absolute;bottom:15px;left:calc(50% - 98px);" />`;
         fragment.appendChild(bottom);
-
-        listEl.innerHTML = '';
+        listEl.innerHTML = "";
         listEl.appendChild(fragment);
     }
 
@@ -273,43 +356,50 @@ function installListDisplay(core) {
         rebuildCurrentList();
     }
 
-    // ========== 事件监听 ==========
-    core.eventBus.on('list:updated', (updatedId) => {
-        if (currentIndex >= 0 && listIds[currentIndex] === updatedId) {
+    // ========== 事件 ==========
+    core.eventBus.on("list:updated", (updatedId) => {
+        if (currentIndex >= 0 && listIds[currentIndex] === updatedId)
             dirty = true;
+    });
+
+    // ========== Ticker ==========
+    let tickCount = 0;
+    core.app.ticker.add(() => {
+        if (dirty) {
+            rebuildIfDirty();
+            tickCount = 0;
+            return;
+        }
+        if (currentIndex < 0) return;
+        tickCount++;
+        if (tickCount % 30 !== 0) return;
+        const id = listIds[currentIndex];
+        const list = _template[id]?.value || [];
+        const newHash =
+            list.length +
+            "|" +
+            (list.length > 0 ? JSON.stringify(list).length : "");
+        const disp = displays[id];
+        const listEl = disp.panel.querySelector("ul");
+        if (listEl && listEl._dataHash !== newHash) {
+            listEl._dataHash = newHash;
+            rebuildCurrentList();
         }
     });
 
-    // ========== 每帧更新 ==========
-let tickCount = 0;
-core.app.ticker.add(() => {
-    // 事件驱动立即更新
-    if (dirty) {
-        rebuildIfDirty();
-        tickCount = 0;
-        return;
-    }
-    // 定时强制检测（每30帧，约0.5秒）
-    if (currentIndex < 0) return;
-    tickCount++;
-    if (tickCount % 30 !== 0) return;
-
-    const id = listIds[currentIndex];
-    const list = _template[id]?.value || [];
-    const newHash = list.length + '|' + (list.length > 0 ? JSON.stringify(list).length : '');
-    if (listEl._dataHash !== newHash) {
-        listEl._dataHash = newHash;
-        rebuildCurrentList();
-    }
-});
-
-    // ========== 全局 API ==========
+    // ========== API ==========
     window.__listDisplay__ = {
         show(id) {
-            if (displays[id]) { displays[id].label.style.display = ''; displays[id].spec.visible = true; }
+            if (displays[id]) {
+                displays[id].label.style.display = "";
+                displays[id].spec.visible = true;
+            }
         },
         hide(id) {
-            if (displays[id]) { displays[id].label.style.display = 'none'; displays[id].spec.visible = false; }
+            if (displays[id]) {
+                displays[id].label.style.display = "none";
+                displays[id].spec.visible = false;
+            }
             if (listIds[currentIndex] === id) closePanel();
         },
     };
