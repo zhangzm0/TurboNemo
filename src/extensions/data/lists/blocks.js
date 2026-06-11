@@ -1,96 +1,124 @@
 // ==================== data/lists/blocks.js ====================
 
-function getListId(b) {
+/**
+ * 辅助函数：编译列表操作对象
+ * 优先从 block 获取（compileValue），否则从 field 获取列表 ID
+ * @returns {string} 生成的 JS 表达式，表示要操作的数组
+ */
+function compileListTarget(c, b) {
     const varEl = b.querySelector(':scope > value[name="VAR"]');
-    if (!varEl) return '';
-    const field = varEl.querySelector(':scope > shadow > field[name="VAR"]')
-              || varEl.querySelector(':scope > field[name="VAR"]');
-    return field ? field.textContent.trim() : '';
+    if (!varEl) return { expr: '[]', id: '' };
+
+    // 检查是否有非 shadow 的 block（用户拖入的积木，如 text_split、procedures_2_parameter 等）
+    const userBlock = varEl.querySelector(':scope > block');
+    if (userBlock) {
+        // 用 compileValue 编译，返回数组表达式
+        const expr = c.compileValue(b, 'VAR');
+        return { expr, id: '' };
+    }
+
+    // shadow 模式：从 field 读取列表 ID
+    const field = varEl.querySelector(':scope > shadow > field[name="VAR"]');
+    const id = field ? field.textContent.trim() : '';
+    return { expr: `self._vars['${id}']?.value`, id };
 }
 
-function getListIdByName(b, name) {
-    const varEl = b.querySelector(`:scope > value[name="${name}"]`);
-    if (!varEl) return '';
-    const field = varEl.querySelector(':scope > shadow > field[name="VAR"]')
-              || varEl.querySelector(':scope > field[name="VAR"]');
-    return field ? field.textContent.trim() : '';
+/**
+ * 编译完成后 emit 更新事件的代码片段
+ */
+function emitUpdateCode(id) {
+    return id ? `__core__.eventBus.emit('list:updated', '${id}');` : '';
 }
 
 export const listBlocks = {
     'lists_get': {
         generator(c, b) {
-            const id = getListId(b) || b.querySelector(':scope > field[name="VAR"]')?.textContent.trim() || '';
+            const id = b.querySelector(':scope > field[name="VAR"]')?.textContent.trim() || '';
             return `self._vars['${id}']?.value`;
         },
     },
     'list_get': {
         generator(c, b) {
-            const id = getListId(b) || b.querySelector(':scope > field[name="VAR"]')?.textContent.trim() || '';
+            const id = b.querySelector(':scope > field[name="VAR"]')?.textContent.trim() || '';
             return `self._vars['${id}']?.value`;
         },
     },
     'lists_append': {
         generator(c, b) {
-            const id = getListId(b);
+            const { expr, id } = compileListTarget(c, b);
             const val = c.compileValue(b, 'VALUE');
-            return `    { const __v = self._vars['${id}']; if (__v) { if (!__v.value) __v.value = []; __v.value.push(${val}); __core__.eventBus.emit('list:append:${id}', ${val}); } }\n` + c.compileNext(b);
+            return `    { const __arr = ${expr}; if (Array.isArray(__arr)) { __arr.push(${val}); ${emitUpdateCode(id)} } }\n` + c.compileNext(b);
         },
     },
     'lists_insert_value': {
         generator(c, b) {
-            const id = getListId(b);
+            const { expr, id } = compileListTarget(c, b);
             const idx = c.compileValue(b, 'INDEX');
             const val = c.compileValue(b, 'VALUE');
-            return `    { const __v = self._vars['${id}']; if (__v?.value) { const __i = (${idx}) - 1; __v.value.splice(__i, 0, ${val}); __core__.eventBus.emit('list:insert:${id}', { index: __i, value: ${val} }); } }\n` + c.compileNext(b);
+            return `    { const __arr = ${expr}; if (Array.isArray(__arr)) { __arr.splice((${idx}) - 1, 0, ${val}); ${emitUpdateCode(id)} } }\n` + c.compileNext(b);
         },
     },
     'lists_delete': {
         generator(c, b) {
-            const id = getListId(b);
+            const type = c.extractParams(b).TYPE;
+            const { expr, id } = compileListTarget(c, b);
+            if (type === 'all') {
+                return `    { const __arr = ${expr}; if (Array.isArray(__arr)) { __arr.length = 0; ${emitUpdateCode(id)} } }\n` + c.compileNext(b);
+            }
             const idx = c.compileValue(b, 'INDEX');
-            return `    { const __v = self._vars['${id}']; if (__v?.value) { const __i = (${idx}) - 1; __v.value.splice(__i, 1); __core__.eventBus.emit('list:delete:${id}', __i); } }\n` + c.compileNext(b);
+            return `    { const __arr = ${expr}; if (Array.isArray(__arr)) { __arr.splice((${idx}) - 1, 1); ${emitUpdateCode(id)} } }\n` + c.compileNext(b);
         },
     },
     'lists_replace': {
         generator(c, b) {
-            const id = getListId(b);
+            const { expr, id } = compileListTarget(c, b);
             const idx = c.compileValue(b, 'INDEX');
             const val = c.compileValue(b, 'VALUE');
-            return `    { const __v = self._vars['${id}']; if (__v?.value) { const __i = (${idx}) - 1; __v.value[__i] = ${val}; __core__.eventBus.emit('list:replace:${id}', { index: __i, value: ${val} }); } }\n` + c.compileNext(b);
+            return `    { const __arr = ${expr}; if (Array.isArray(__arr)) { const __i = (${idx}) - 1; __arr[__i] = ${val}; ${emitUpdateCode(id)} } }\n` + c.compileNext(b);
         },
     },
     'lists_copy': {
         generator(c, b) {
-            const targetId = getListIdByName(b, 'TARGET');
-            const srcId = getListIdByName(b, 'VALUE');
-            return `    { const __src = self._vars['${srcId}']?.value; const __tgt = self._vars['${targetId}']?.value; if (__src && __tgt) { __tgt.length = 0; __tgt.push(...__src); __core__.eventBus.emit('list:copy:${targetId}', '${srcId}'); } }\n` + c.compileNext(b);
+            const target = compileListTarget(c, b);
+            // VALUE 也可能是表达式
+            const valEl = b.querySelector(':scope > value[name="VALUE"]');
+            const valBlock = valEl?.querySelector(':scope > block');
+            let srcExpr;
+            if (valBlock) {
+                srcExpr = c.compileValue(b, 'VALUE');
+            } else {
+                const srcField = valEl?.querySelector(':scope > shadow > field[name="VAR"]');
+                const srcId = srcField ? srcField.textContent.trim() : '';
+                srcExpr = srcId ? `self._vars['${srcId}']?.value` : '[]';
+            }
+            return `    { const __src = ${srcExpr}; const __tgt = ${target.expr}; if (Array.isArray(__src) && Array.isArray(__tgt)) { __tgt.length = 0; __tgt.push(...__src); ${emitUpdateCode(target.id)} } }\n` + c.compileNext(b);
         },
     },
     'lists_get_value': {
         generator(c, b) {
-            const id = getListId(b);
+            const { expr } = compileListTarget(c, b);
             const idx = c.compileValue(b, 'INDEX');
-            return `((self._vars['${id}']?.value || [])[(${idx}) - 1] ?? 0)`;
+            return `((${expr} || [])[(${idx}) - 1] ?? 0)`;
         },
     },
     'lists_length': {
         generator(c, b) {
-            const id = getListId(b);
-            return `((self._vars['${id}']?.value || []).length)`;
+            const { expr } = compileListTarget(c, b);
+            return `((${expr} || []).length)`;
         },
     },
     'lists_index_of': {
         generator(c, b) {
-            const id = getListId(b);
+            const { expr } = compileListTarget(c, b);
             const val = c.compileValue(b, 'VALUE');
-            return `(((self._vars['${id}']?.value || []).indexOf(${val})) + 1)`;
+            return `(((${expr} || []).indexOf(${val})) + 1)`;
         },
     },
     'lists_is_exist': {
         generator(c, b) {
-            const id = getListId(b);
+            const { expr } = compileListTarget(c, b);
             const val = c.compileValue(b, 'VALUE');
-            return `((self._vars['${id}']?.value || []).includes(${val}))`;
+            return `((${expr} || []).includes(${val}))`;
         },
     },
     'show_hide_list': {

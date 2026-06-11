@@ -12,16 +12,18 @@ const CLOSE_BG =
     "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAABBElEQVRYR+1WwQ3CMAxsugd8kPjCBEiMAoPBKEhMAF8kPrBHgowUqQpO4nNC00f7jOy7i+1LbbrGn2nM380C2AocdqsFteZ8fb5rtCiF9yOAgp0xWyLu+/51ujzuJSKO+/XGWrskDOPcLbxUUkCpiCG5WAAFhomaSkgxoi6QAnDtQXKTNkSAvBA0J/sOIIBIrBecFSCdCQ35dzClFksRaMkhAbFK0Ln3uca24grEhmxYQY1dYQFcJTQ3h4YwnJOw56MK4Mi9wL+3gJv20YawqQ0lPpfEcG9O1gUIMBIrcoEGEM2Z5u8YvUXJTjC9laz5UkrlbLqWS/eDWnHZd6AWUQxnFvABkpFIMD6R4JQAAAAASUVORK5CYII=";
 
 function truncate(str, max) {
-    if (!str) return "";
+    if (!str) return '';
     if (str.length <= max) return str;
-    return str.substring(0, max - 1) + "…" + str.substring(str.length - 1);
+    return str.substring(0, max - 1) + '…' + str.substring(str.length - 1);
 }
 
 function installListDisplay(core) {
     const displays = {};
     const listIds = [];
     let currentIndex = -1;
+    let dirty = false;
 
+    // ========== 独立容器 ==========
     const container = document.createElement("div");
     container.style.cssText = `
         position:absolute; top:0; left:0;
@@ -33,19 +35,19 @@ function installListDisplay(core) {
     const mask = document.createElement("div");
     mask.style.cssText = `
         display:none;
-        position:absolute; top:0; left:0;transform:translate(-50%, -50%);
+        position:absolute; top:0; left:0;
         width:100%; height:100%;
         background:rgba(0,0,0,0.3); z-index:9;
         pointer-events:auto;
     `;
-    mask.addEventListener("click", () => closePanel());
+    mask.addEventListener('click', () => closePanel());
     container.appendChild(mask);
 
     const rootPanel = document.createElement("div");
     rootPanel.style.cssText = `
         display:none;
         position:absolute;
-        top:-15%; left:0%;
+        top:-9%; left:0%;
         transform:translate(-50%, -50%);
         z-index:10;
         pointer-events:auto;
@@ -54,6 +56,7 @@ function installListDisplay(core) {
     `;
     container.appendChild(rootPanel);
 
+    // ========== 标题栏 ==========
     const titleBar = document.createElement("div");
     titleBar.style.cssText = `
         width:455px; height:78px;
@@ -71,7 +74,7 @@ function installListDisplay(core) {
     titleBar.appendChild(titleText);
 
     const titleEntity = document.createElement("span");
-    titleEntity.style.cssText = "font-size:18px;line-height:21px;opacity:0.5;";
+    titleEntity.style.cssText = 'font-size:18px;line-height:21px;opacity:0.5;';
     titleBar.insertBefore(titleEntity, titleText);
 
     const closeBtn = document.createElement("div");
@@ -82,19 +85,20 @@ function installListDisplay(core) {
         background-size:contain;
         cursor:pointer;
     `;
-    closeBtn.addEventListener("click", () => closePanel());
+    closeBtn.addEventListener('click', () => closePanel());
     titleBar.appendChild(closeBtn);
 
+    // ========== 内容区 ==========
     const content = document.createElement("div");
     content.style.cssText = `
         position:relative;
-        width:393px; height:500px;
+        width:393px; height:449px;
         border-radius:24px;
         background:#ffffff;
         display:flex; flex-direction:column;
         align-items:center; justify-content:flex-start;
         padding-top:30px;
-        margin-top:0px;
+        margin-top:-30px;
         box-sizing:border-box;
     `;
     rootPanel.appendChild(content);
@@ -112,7 +116,7 @@ function installListDisplay(core) {
     const listEl = document.createElement("ul");
     listEl.style.cssText = `
         width:100%; height:100%;
-        overflow:hidden;
+        overflow-y:auto; overflow-x:hidden;
         font-family:PingFangSC-Regular,'PingFang SC','Microsoft YaHei',sans-serif;
         font-size:24px; color:#333333;
         list-style-type:none;
@@ -122,8 +126,9 @@ function installListDisplay(core) {
     `;
     content.appendChild(listEl);
 
+    // ========== 左右箭头 ==========
     const prevBtn = document.createElement("div");
-    prevBtn.innerHTML = "◀";
+    prevBtn.innerHTML = '◀';
     prevBtn.style.cssText = `
         display:none;
         position:absolute; left:-40px; top:50%;
@@ -131,13 +136,11 @@ function installListDisplay(core) {
         cursor:pointer; font-size:24px; color:#624026;
         user-select:none; pointer-events:auto;
     `;
-    prevBtn.addEventListener("click", () => {
-        if (currentIndex > 0) showList(currentIndex - 1);
-    });
+    prevBtn.addEventListener('click', () => { if (currentIndex > 0) showList(currentIndex - 1); });
     rootPanel.appendChild(prevBtn);
 
     const nextBtn = document.createElement("div");
-    nextBtn.innerHTML = "▶";
+    nextBtn.innerHTML = '▶';
     nextBtn.style.cssText = `
         display:none;
         position:absolute; right:-40px; top:50%;
@@ -145,11 +148,10 @@ function installListDisplay(core) {
         cursor:pointer; font-size:24px; color:#624026;
         user-select:none; pointer-events:auto;
     `;
-    nextBtn.addEventListener("click", () => {
-        if (currentIndex < listIds.length - 1) showList(currentIndex + 1);
-    });
+    nextBtn.addEventListener('click', () => { if (currentIndex < listIds.length - 1) showList(currentIndex + 1); });
     rootPanel.appendChild(nextBtn);
 
+    // ========== 标签 ==========
     const labelLayer = core.stage.globalHtmlLayer;
 
     for (const [id, spec] of Object.entries(_specs)) {
@@ -167,134 +169,147 @@ function installListDisplay(core) {
             font-size:16px; color:#624026; font-weight:500;
             white-space:nowrap; pointer-events:auto; cursor:pointer;
         `;
-        label.style.left = (spec.position?.x ?? 0) + "px";
-        label.style.top = -(spec.position?.y ?? 0) + "px";
-        label.style.display = spec.visible ? "" : "none";
-        const entityName =
-            spec.is_global === false ? spec.entity_name || "" : "";
-        label.textContent = (entityName ? entityName + " · " : "") + spec.name;
-        label.addEventListener("click", () => {
+        label.style.left = (spec.position?.x ?? 0) + 'px';
+        label.style.top = -(spec.position?.y ?? 0) + 'px';
+        label.style.display = spec.visible ? '' : 'none';
+        const entityName = spec.is_global === false ? (spec.entity_name || '') : '';
+        label.textContent = (entityName ? entityName + ' · ' : '') + spec.name;
+        label.addEventListener('click', () => {
             const idx = listIds.indexOf(id);
             if (idx !== -1) showList(idx);
         });
-        // 标签创建时
-        const arrow = document.createElement("span");
-        arrow.innerHTML = "▼";
-        arrow.style.cssText = "font-size:10px; margin-left:6px; color:#673F20;";
-        label.appendChild(arrow);
         labelLayer.appendChild(label);
 
-        displays[id] = { label, spec };
+        displays[id] = { label, spec, pool: [] };
     }
 
+    // ========== 面板切换 ==========
     function showList(index) {
         if (index < 0 || index >= listIds.length) return;
         currentIndex = index;
         const spec = displays[listIds[index]]?.spec;
         if (!spec) return;
 
-        const entityName =
-            spec.is_global === false ? spec.entity_name || "" : "";
-        titleEntity.textContent = entityName ? truncate(entityName, 4) : "";
-        titleEntity.style.display = entityName ? "" : "none";
+        const entityName = spec.is_global === false ? (spec.entity_name || '') : '';
+        titleEntity.textContent = entityName ? truncate(entityName, 4) : '';
+        titleEntity.style.display = entityName ? '' : 'none';
         titleText.textContent = truncate(spec.name, 10);
 
-        prevBtn.style.display = index > 0 ? "" : "none";
-        nextBtn.style.display = index < listIds.length - 1 ? "" : "none";
+        prevBtn.style.display = index > 0 ? '' : 'none';
+        nextBtn.style.display = index < listIds.length - 1 ? '' : 'none';
 
-        mask.style.display = "";
-        rootPanel.style.display = "flex";
-        rebuildCurrentList();
+        mask.style.display = '';
+        rootPanel.style.display = 'flex';
+        dirty = true;
+        rebuildIfDirty();
     }
 
     function closePanel() {
-        mask.style.display = "none";
-        rootPanel.style.display = "none";
+        mask.style.display = 'none';
+        rootPanel.style.display = 'none';
         currentIndex = -1;
     }
 
-    function rebuildCurrentList() {
-        if (currentIndex < 0) return;
-        const id = listIds[currentIndex];
-        const list = _template[id]?.value || [];
-        if (list.length === 0) {
-            listEl.innerHTML = buildEmptyHTML();
-        } else {
-            listEl.innerHTML =
-                list.map((v, i) => buildItemHTML(i, v)).join("") +
-                buildBottomHTML();
+    // ========== 行元素构建/更新 ==========
+    function updateLiContent(li, i, v) {
+        const spans = li.querySelectorAll('span');
+        if (spans[0]) {
+            spans[0].textContent = i + 1;
+            spans[0].style.fontSize = i >= 99 ? '18px' : '21px';
         }
+        if (spans[1]) spans[1].textContent = v;
+        li.style.backgroundColor = i % 2 === 0 ? '#fff9e4' : '#ffffff';
     }
 
-    // ========== 列表项 HTML 构建 ==========
-    function buildItemHTML(i, v) {
-        const idxClass = i >= 99 ? "18px" : "21px";
-        const bg = i % 2 === 0 ? "#fff9e4" : "#ffffff";
-        return `<li style="width:100%;height:53px;display:flex;align-items:center;justify-content:center;position:relative;background-color:${bg};">
-            <span style="width:52px;height:30px;font-size:${idxClass};color:#c6c3c0;font-weight:bold;line-height:30px;text-align:center;padding:0 4px 0 6px;">${i + 1}</span>
+    function createLiElement(i, v) {
+        const li = document.createElement('li');
+        li.style.cssText = `width:100%;height:53px;display:flex;align-items:center;justify-content:center;position:relative;background-color:${i % 2 === 0 ? '#fff9e4' : '#ffffff'};`;
+        li.innerHTML = `
+            <span style="width:52px;height:30px;font-size:${i >= 99 ? '18px' : '21px'};color:#c6c3c0;font-weight:bold;line-height:30px;text-align:center;padding:0 4px 0 6px;">${i + 1}</span>
             <span style="flex:1;height:48px;line-height:48px;font-size:21px;text-align:center;padding-right:52px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#43372e;">${v}</span>
-        </li>`;
+        `;
+        return li;
     }
 
     function buildEmptyHTML() {
         return `<li style="position:relative;height:100%;"><img src="${BOTTOM_LINE}" style="width:196px;height:5px;position:absolute;bottom:15px;left:calc(50% - 98px);" /></li>`;
     }
 
-    function buildBottomHTML() {
-        return `<li style="position:relative;min-height:48px;border-bottom-left-radius:24px;border-bottom-right-radius:24px;"><img src="${BOTTOM_LINE}" style="width:196px;height:5px;position:absolute;bottom:15px;left:calc(50% - 98px);" /></li>`;
-    }
+    function rebuildCurrentList() {
+        if (currentIndex < 0) return;
+        const id = listIds[currentIndex];
+        const list = _template[id]?.value || [];
+        const pool = displays[id].pool;
 
-    // ========== 事件驱动更新 ==========
-    for (const id of listIds) {
-        core.eventBus.on(`list:append:${id}`, (val) => {
-            if (listIds[currentIndex] !== id) return;
-            const bottom = listEl.querySelector("li:last-child");
-            if (bottom && bottom.querySelector("img")) bottom.remove();
-            const list = _template[id]?.value || [];
-            listEl.insertAdjacentHTML(
-                "beforeend",
-                buildItemHTML(list.length - 1, val),
-            );
-            listEl.insertAdjacentHTML("beforeend", buildBottomHTML());
-        });
+        if (list.length === 0) {
+            listEl.innerHTML = buildEmptyHTML();
+            return;
+        }
 
-        core.eventBus.on(`list:insert:${id}`, () => {
-            if (listIds[currentIndex] !== id) return;
-            rebuildCurrentList();
-        });
-
-        core.eventBus.on(`list:delete:${id}`, () => {
-            if (listIds[currentIndex] !== id) return;
-            rebuildCurrentList();
-        });
-
-        core.eventBus.on(`list:replace:${id}`, ({ index, value }) => {
-            if (listIds[currentIndex] !== id) return;
-            const items = listEl.querySelectorAll("li");
-            if (items[index]) {
-                const valEl = items[index].querySelector("span:last-child");
-                if (valEl) valEl.textContent = value;
+        const fragment = document.createDocumentFragment();
+        for (let i = 0; i < list.length; i++) {
+            if (i < pool.length) {
+                updateLiContent(pool[i], i, list[i]);
+                fragment.appendChild(pool[i]);
+            } else {
+                const li = createLiElement(i, list[i]);
+                pool.push(li);
+                fragment.appendChild(li);
             }
-        });
+        }
 
-        core.eventBus.on(`list:copy:${id}`, () => {
-            if (listIds[currentIndex] !== id) return;
-            rebuildCurrentList();
-        });
+        const bottom = document.createElement('li');
+        bottom.style.cssText = 'position:relative;min-height:48px;border-bottom-left-radius:24px;border-bottom-right-radius:24px;';
+        bottom.innerHTML = `<img src="${BOTTOM_LINE}" style="width:196px;height:5px;position:absolute;bottom:15px;left:calc(50% - 98px);" />`;
+        fragment.appendChild(bottom);
+
+        listEl.innerHTML = '';
+        listEl.appendChild(fragment);
     }
 
+    function rebuildIfDirty() {
+        if (!dirty || currentIndex < 0) return;
+        dirty = false;
+        rebuildCurrentList();
+    }
+
+    // ========== 事件监听 ==========
+    core.eventBus.on('list:updated', (updatedId) => {
+        if (currentIndex >= 0 && listIds[currentIndex] === updatedId) {
+            dirty = true;
+        }
+    });
+
+    // ========== 每帧更新 ==========
+let tickCount = 0;
+core.app.ticker.add(() => {
+    // 事件驱动立即更新
+    if (dirty) {
+        rebuildIfDirty();
+        tickCount = 0;
+        return;
+    }
+    // 定时强制检测（每30帧，约0.5秒）
+    if (currentIndex < 0) return;
+    tickCount++;
+    if (tickCount % 30 !== 0) return;
+
+    const id = listIds[currentIndex];
+    const list = _template[id]?.value || [];
+    const newHash = list.length + '|' + (list.length > 0 ? JSON.stringify(list).length : '');
+    if (listEl._dataHash !== newHash) {
+        listEl._dataHash = newHash;
+        rebuildCurrentList();
+    }
+});
+
+    // ========== 全局 API ==========
     window.__listDisplay__ = {
         show(id) {
-            if (displays[id]) {
-                displays[id].label.style.display = "";
-                displays[id].spec.visible = true;
-            }
+            if (displays[id]) { displays[id].label.style.display = ''; displays[id].spec.visible = true; }
         },
         hide(id) {
-            if (displays[id]) {
-                displays[id].label.style.display = "none";
-                displays[id].spec.visible = false;
-            }
+            if (displays[id]) { displays[id].label.style.display = 'none'; displays[id].spec.visible = false; }
             if (listIds[currentIndex] === id) closePanel();
         },
     };
