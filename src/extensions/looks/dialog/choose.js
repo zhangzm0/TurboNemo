@@ -50,7 +50,7 @@ export const chooseBlocks = {
 
 export function installChoose(core) {
     const container = createDialogContainer(core);
-    const { mask, panel, hide } = createPanel(container, { showBottomDecor: false });
+    const { mask, panel, show, hide } = createPanel(container, { showBottomDecor: false });
 
     const questionArea = document.createElement("div");
     questionArea.style.cssText = "display:flex;";
@@ -111,8 +111,10 @@ export function installChoose(core) {
             `;
             const select = () => {
                 hide();
-                choiceContainer.remove();
-                core.eventBus.emit("ask:choiceMade", { index: i, content: String(choice) });
+                setTimeout(() => {
+                    choiceContainer.remove();
+                    core.eventBus.emit("ask:choiceMade", { index: i, content: String(choice) });
+                }, 250); // 略长于 transition 0.2s
             };
             btn.addEventListener("mousedown", () => {
                 btn.style.background = CHOICE_STYLE.ACTIVE_BG;
@@ -138,8 +140,7 @@ export function installChoose(core) {
             choiceContainer.appendChild(btn);
         });
 
-        mask.style.display = "";
-        panel.style.display = "";
+        show();
     }
 
     core.globalHook("__chooseDialog__", () => ({ showChoices }));

@@ -182,7 +182,7 @@ export default {
         }
 
         function toCanvasX(sx) { return core.width / 2 + sx; }
-        function toCanvasY(sy) { return core.height / 2 - sy; }
+        function toCanvasY(sy) { return core.height / 2 + sy; }
 
         function flush() {
             if (!dirty) return;

@@ -34,13 +34,14 @@ function installListDisplay(core) {
     // 遮罩
     const mask = document.createElement("div");
     mask.style.cssText = `
-        display:none;
         position:absolute;
         top:0; left:0;
         width:100%; height:100%;
-        background:rgba(0,0,0,0.3);
+        background:rgba(0,0,0,0);
         z-index:9;
-        pointer-events:auto;
+        pointer-events:none;
+        opacity:0;
+        transition: opacity 0.25s ease, background 0.25s ease;
         transform:translate(-50%, -50%);
     `;
     mask.addEventListener("click", () => closePanel());
@@ -49,12 +50,13 @@ function installListDisplay(core) {
     // 面板外层容器，用于定位
     const rootPanel = document.createElement("div");
     rootPanel.style.cssText = `
-        display:none;
         position:absolute;
         top:-9%; left:0%;
-        transform:translate(-50%, -50%);
+        transform:translate(-50%, -50%) scale(0.9);
         z-index:10;
-        pointer-events:auto;
+        pointer-events:none;
+        opacity:0;
+        transition: opacity 0.25s ease, transform 0.25s ease;
     `;
     container.appendChild(rootPanel);
 
@@ -134,20 +136,48 @@ function installListDisplay(core) {
         const label = document.createElement("div");
         label.style.cssText = `
             position:absolute;
-            border-radius:20px;
-            background:#FFDA3F;
-            box-shadow:2px 2px 4px rgba(0,0,0,0.2),inset 0 -1.5px 0 #FDC330;
-            padding:8px 14px;
+            height:54px; line-height:54px;
+            border-radius:27px;
+            padding:0 18px;
             font-family:'PingFang SC','Microsoft YaHei',sans-serif;
-            font-size:16px; color:#624026; font-weight:500;
+            font-size:21px; color:#624026; font-weight:500;
             white-space:nowrap; pointer-events:auto; cursor:pointer;
+            background:#FFDA3F;
+            box-shadow:
+                0 4px 0 rgba(0,0,0,0.2),
+                0 2px 0 #FDC330;
+            display:flex; align-items:center; flex-wrap:nowrap;
         `;
         label.style.left = (spec.position?.x ?? 0) + "px";
         label.style.top = -(spec.position?.y ?? 0) + "px";
         label.style.display = spec.visible ? "" : "none";
-        const entityName =
-            spec.is_global === false ? spec.entity_name || "" : "";
-        label.textContent = (entityName ? entityName + " · " : "") + spec.name;
+
+        const entityName = spec.is_global === false ? (spec.entity_name || "") : "";
+
+        // 角色名（如果有）
+        if (entityName) {
+            const actorSpan = document.createElement("span");
+            actorSpan.style.cssText = 'color:#B14C00; font-size:21px; font-weight:500; margin-right:4px;';
+            actorSpan.textContent = entityName;
+            label.appendChild(actorSpan);
+
+            const dot = document.createElement("span");
+            dot.style.cssText = 'color:#B14C00; margin-right:4px;';
+            dot.textContent = '·';
+            label.appendChild(dot);
+        }
+
+        // 列表名
+        const nameSpan = document.createElement("span");
+        nameSpan.textContent = spec.name;
+        label.appendChild(nameSpan);
+
+        // 倒三角
+        const arrow = document.createElement("span");
+        arrow.textContent = '▼';
+        arrow.style.cssText = 'font-size:10px; color:#673F20; margin-left:8px; display:inline-block;';
+        label.appendChild(arrow);
+
         label.addEventListener("click", () => {
             const idx = listIds.indexOf(id);
             if (idx !== -1) showList(idx);
@@ -266,7 +296,6 @@ function installListDisplay(core) {
         if (index < 0 || index >= listIds.length) return;
         currentIndex = index;
 
-        // 更新激活样式
         for (let i = 0; i < listIds.length; i++) {
             const p = displays[listIds[i]].panel;
             if (i === index) {
@@ -278,24 +307,40 @@ function installListDisplay(core) {
             }
         }
 
-        // 计算偏移使激活面板居中
-        const step = PANEL_WIDTH - 30; // 425
+        const step = PANEL_WIDTH - 30;
         const rootPanelWidth = listIds.length * step + 30;
         const activePanelCenter = index * step + PANEL_WIDTH / 2;
         const offset = rootPanelWidth / 2 - activePanelCenter;
         panelsWrapper.style.transform = `translateX(${offset}px)`;
 
-        mask.style.display = "";
-        rootPanel.style.display = "block";
+        showPanel();
         dirty = true;
         rebuildIfDirty();
     }
 
     function closePanel() {
-        mask.style.display = "none";
-        rootPanel.style.display = "none";
+        hidePanel();
         currentIndex = -1;
     }
+
+    function showPanel() {
+        mask.style.opacity = '1';
+        mask.style.background = 'rgba(0,0,0,0.3)';
+        mask.style.pointerEvents = 'auto';
+        rootPanel.style.opacity = '1';
+        rootPanel.style.transform = 'translate(-50%, -50%) scale(1)';
+        rootPanel.style.pointerEvents = 'auto';
+    }
+
+    function hidePanel() {
+        mask.style.opacity = '0';
+        mask.style.background = 'rgba(0,0,0,0)';
+        mask.style.pointerEvents = 'none';
+        rootPanel.style.opacity = '0';
+        rootPanel.style.transform = 'translate(-50%, -50%) scale(0.9)';
+        rootPanel.style.pointerEvents = 'none';
+    }
+    
 
     // ========== 行元素构建/更新 ==========
     function updateLiContent(li, i, v) {
@@ -372,6 +417,7 @@ function installListDisplay(core) {
     });
 
     // ========== 每帧更新 + 定时检测 ==========
+    // 定时检测改为 60 帧一次，且用长度+首尾做 hash
     let tickCount = 0;
     core.app.ticker.add(() => {
         if (dirty) {
@@ -380,19 +426,20 @@ function installListDisplay(core) {
             return;
         }
         if (currentIndex < 0) return;
+        // 面板关闭（opacity为0）时跳过
+        if (rootPanel.style.opacity === '0') return;
+    
         tickCount++;
-        if (tickCount % 30 !== 0) return;
+        if (tickCount % 60 !== 0) return;
 
         const id = listIds[currentIndex];
         const list = _template[id]?.value || [];
-        const newHash =
-            list.length +
-            "|" +
-            (list.length > 0 ? JSON.stringify(list).length : "");
+        const len = list.length;
+        const hash = len + '|' + (len > 0 ? list[0] : '') + '|' + (len > 0 ? list[len - 1] : '');
         const disp = displays[id];
         const listEl = disp.panel.querySelector("ul");
-        if (listEl && listEl._dataHash !== newHash) {
-            listEl._dataHash = newHash;
+        if (listEl && listEl._dataHash !== hash) {
+            listEl._dataHash = hash;
             rebuildCurrentList();
         }
     });

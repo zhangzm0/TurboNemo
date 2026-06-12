@@ -35,7 +35,7 @@ export const askBlocks = {
 
 export function installAsk(core) {
     const container = createDialogContainer(core);
-    const { mask, panel, hide } = createPanel(container, { showBottomDecor: true });
+    const { mask, panel, show, hide } = createPanel(container, { showBottomDecor: true });
 
     const questionArea = document.createElement("div");
     questionArea.style.cssText = "display:flex;";
@@ -101,7 +101,7 @@ export function installAsk(core) {
     input.addEventListener("keydown", (e) => { if (e.key === "Enter") confirm(); });
     mask.addEventListener("click", confirm);
 
-    function show(actor, question) {
+    function showAsk(actor, question) {
         const avatarUrl = getAvatarUrl(actor);
         actorNameEl.textContent = truncate(actor.name, 10);
         questionText.textContent = question || "";
@@ -110,10 +110,9 @@ export function installAsk(core) {
         input.style.display = "";
         confirmBtn.style.display = "";
         panel.querySelectorAll('.ask-choice-container').forEach(el => el.remove());
-        mask.style.display = "";
-        panel.style.display = "";
-        setTimeout(() => input.focus(), 100);
+        show();
+        setTimeout(() => input.focus(), 200);
     }
 
-    core.globalHook("__askDialog__", () => ({ show }));
+    core.globalHook("__askDialog__", () => ({ show: showAsk }));
 }

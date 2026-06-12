@@ -4,27 +4,29 @@ export function createPanel(container, options = {}) {
 
     const mask = document.createElement("div");
     mask.style.cssText = `
-        display:none;
         position:absolute; top:0; left:0;
         width:100%; height:100%;
-        background:rgba(0,0,0,0.54);
-        pointer-events:auto;
+        background:rgba(0,0,0,0);
+        opacity:0;
+        pointer-events:none;
+        transition: opacity 0.2s ease, background 0.2s ease;
     `;
     container.appendChild(mask);
 
     const panel = document.createElement("div");
     panel.style.cssText = `
-        display:none;
         position:absolute;
         bottom:55px; left:50%;
-        transform:translate(-50%, 0%);
+        transform:translate(-50%, 10px);
         width:calc(100% - 48px); max-width:600px;
         padding:48px;
         border-radius:48px;
         background:linear-gradient(#ffdb3f, #fdb835);
         border:#ffffff solid 2px;
-        pointer-events:auto;
+        pointer-events:none;
         overflow:visible;
+        opacity:0;
+        transition: opacity 0.2s ease, transform 0.2s ease;
     `;
     container.appendChild(panel);
 
@@ -53,8 +55,24 @@ export function createPanel(container, options = {}) {
         panel.appendChild(bottomDecor);
     }
 
-    function show() { mask.style.display = ""; panel.style.display = ""; }
-    function hide() { mask.style.display = "none"; panel.style.display = "none"; }
+    function show() {
+        mask.style.opacity = '1';
+        mask.style.background = 'rgba(0,0,0,0.54)';
+        mask.style.pointerEvents = 'auto';
+        panel.style.opacity = '1';
+        panel.style.transform = 'translate(-50%, 0)';
+        panel.style.pointerEvents = 'auto';
+    }
+
+    function hide() {
+        document.activeElement?.blur();
+        mask.style.opacity = '0';
+        mask.style.background = 'rgba(0,0,0,0)';
+        mask.style.pointerEvents = 'none';
+        panel.style.opacity = '0';
+        panel.style.transform = 'translate(-50%, 10px)';
+        panel.style.pointerEvents = 'none';
+    }
 
     return { mask, panel, innerBg, bottomDecor, show, hide };
 }
