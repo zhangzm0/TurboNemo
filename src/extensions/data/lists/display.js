@@ -10,7 +10,6 @@ const TITLE_BG =
 // 关闭按钮图标
 const CLOSE_BG =
     "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAABBElEQVRYR+1WwQ3CMAxsugd8kPjCBEiMAoPBKEhMAF8kPrBHgowUqQpO4nNC00f7jOy7i+1LbbrGn2nM380C2AocdqsFteZ8fb5rtCiF9yOAgp0xWyLu+/51ujzuJSKO+/XGWrskDOPcLbxUUkCpiCG5WAAFhomaSkgxoi6QAnDtQXKTNkSAvBA0J/sOIIBIrBecFSCdCQ35dzClFksRaMkhAbFK0Ln3uca24grEhmxYQY1dYQFcJTQ3h4YwnJOw56MK4Mi9wL+3gJv20YawqQ0lPpfEcG9O1gUIMBIrcoEGEM2Z5u8YvUXJTjC9laz5UkrlbLqWS/eDWnHZd6AWUQxnFvABkpFIMD6R4JQAAAAASUVORK5CYII=";
-
 function truncate(str, max) {
     if (!str) return "";
     if (str.length <= max) return str;
@@ -23,7 +22,7 @@ function installListDisplay(core) {
     let currentIndex = -1;
     let dirty = false;
 
-    // ========== 根容器 ==========
+    // ========== 独立容器 ==========
     const container = document.createElement("div");
     container.style.cssText = `
         position:absolute; top:0; left:0;
@@ -32,7 +31,7 @@ function installListDisplay(core) {
     `;
     core.stage.htmlContainer.appendChild(container);
 
-    // ========== 遮罩 ==========
+    // 遮罩
     const mask = document.createElement("div");
     mask.style.cssText = `
         display:none;
@@ -47,30 +46,19 @@ function installListDisplay(core) {
     mask.addEventListener("click", () => closePanel());
     container.appendChild(mask);
 
-    // ========== 裁剪包裹器（固定宽度，居中，隐藏溢出） ==========
-    const clipWrapper = document.createElement("div");
-    clipWrapper.style.cssText = `
+    // 面板外层容器，用于定位
+    const rootPanel = document.createElement("div");
+    rootPanel.style.cssText = `
         display:none;
         position:absolute;
         top:-9%; left:0%;
         transform:translate(-50%, -50%);
-        width:100%;
-        height:560px;  /* 确保容纳标题栏+内容区+底部阴影 */
-        overflow:hidden;
         z-index:10;
-        pointer-events:none;
-    `;
-    container.appendChild(clipWrapper);
-
-    // ========== 面板根容器（在裁剪包裹器内部滑动） ==========
-    const rootPanel = document.createElement("div");
-    rootPanel.style.cssText = `
-        position:relative;
         pointer-events:auto;
     `;
-    clipWrapper.appendChild(rootPanel);
+    container.appendChild(rootPanel);
 
-    // ========== 水平排列容器 ==========
+    // 所有列表面板的水平排列容器
     const panelsWrapper = document.createElement("div");
     panelsWrapper.style.cssText = `
         display:flex;
@@ -79,48 +67,70 @@ function installListDisplay(core) {
     `;
     rootPanel.appendChild(panelsWrapper);
 
-    // ========== 左右箭头（放在 container 上，相对于裁剪区域精准定位） ==========
-    const prevBtn = document.createElement("div");
-    prevBtn.innerHTML = "◀";
-    prevBtn.style.cssText = `
-        display:none;
-        position:absolute;
-        top:-9%; left:0%;
-        transform:translate(-50%, -50%) translateX(-257px);
-        cursor:pointer; font-size:24px; color:#624026;
-        user-select:none; pointer-events:auto; z-index:11;
-    `;
-    prevBtn.addEventListener("click", () => {
-        if (currentIndex > 0) showList(currentIndex - 1);
+    // 点击 rootPanel 左右边缘区域切换列表
+    rootPanel.addEventListener("click", (e) => {
+        if (listIds.length <= 1) return;
+        const rect = rootPanel.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const mid = rect.width / 2;
+        if (x < mid - 120) {
+            if (currentIndex > 0) showList(currentIndex - 1);
+        } else if (x > mid + 120) {
+            if (currentIndex < listIds.length - 1) showList(currentIndex + 1);
+        }
     });
-    container.appendChild(prevBtn);
+    // 在 rootPanel 上增加触摸滑动
+    let touchStartX = 0;
+    let touchMoved = false;
 
-    const nextBtn = document.createElement("div");
-    nextBtn.innerHTML = "▶";
-    nextBtn.style.cssText = `
-        display:none;
-        position:absolute;
-        top:-9%; left:0%;
-        transform:translate(-50%, -50%) translateX(257px);
-        cursor:pointer; font-size:24px; color:#624026;
-        user-select:none; pointer-events:auto; z-index:11;
-    `;
-    nextBtn.addEventListener("click", () => {
-        if (currentIndex < listIds.length - 1) showList(currentIndex + 1);
+    rootPanel.addEventListener("touchstart", (e) => {
+        if (listIds.length <= 1) return;
+        touchStartX = e.touches[0].clientX;
+        touchMoved = false;
+        panelsWrapper.style.transition = "none"; // 滑动时去掉动画
     });
-    container.appendChild(nextBtn);
+
+    rootPanel.addEventListener("touchmove", (e) => {
+        if (listIds.length <= 1) return;
+        const dx = e.touches[0].clientX - touchStartX;
+        if (Math.abs(dx) > 10) touchMoved = true;
+        // 实时跟随手指
+        const step = PANEL_WIDTH - 30;
+        const baseOffset =
+            -currentIndex * step +
+            (listIds.length * step + 30) / 2 -
+            PANEL_WIDTH / 2;
+        panelsWrapper.style.transform = `translateX(${baseOffset + dx}px)`;
+    });
+
+    rootPanel.addEventListener("touchend", (e) => {
+        panelsWrapper.style.transition = "transform 0.3s ease";
+        if (!touchMoved) return;
+        const dx = e.changedTouches[0].clientX - touchStartX;
+        if (Math.abs(dx) > 60) {
+            if (dx < 0 && currentIndex < listIds.length - 1) {
+                showList(currentIndex + 1);
+            } else if (dx > 0 && currentIndex > 0) {
+                showList(currentIndex - 1);
+            } else {
+                showList(currentIndex); // 回弹
+            }
+        } else {
+            showList(currentIndex); // 回弹
+        }
+    });
 
     // ========== 标签层 ==========
     const labelLayer = core.stage.globalHtmlLayer;
 
     const PANEL_WIDTH = 455;
 
-    // ========== 创建每个列表的独立面板 ==========
+    // 预先创建每个列表的独立面板
     for (const [id, spec] of Object.entries(_specs)) {
         if (!isList(id)) continue;
         listIds.push(id);
 
-        // 标签
+        // 列表标签
         const label = document.createElement("div");
         label.style.cssText = `
             position:absolute;
@@ -144,16 +154,17 @@ function installListDisplay(core) {
         });
         labelLayer.appendChild(label);
 
-        // 面板
+        // 创建该列表的完整面板
         const panel = createListPanel(id, spec, entityName);
         panelsWrapper.appendChild(panel);
 
         displays[id] = { label, spec, panel, pool: [] };
     }
 
+    // 如果没有列表，直接返回
     if (listIds.length === 0) return;
 
-    // ========== 创建单个列表面板 ==========
+    // ========== 创建单个列表的面板 DOM ==========
     function createListPanel(id, spec, entityName) {
         const panel = document.createElement("div");
         panel.style.cssText = `
@@ -168,10 +179,11 @@ function installListDisplay(core) {
             margin-right: -30px;
         `;
 
+        // 标题栏
         const titleBar = document.createElement("div");
         titleBar.style.cssText = `
             width:455px; height:78px;
-            position:relative; top:30px; z-index:1;
+            position:relative; top:0px; z-index:1;
             display:flex; flex-direction:column;
             justify-content:center; align-items:center;
             font-family:PingFangSC-Medium,'PingFang SC','Microsoft YaHei',sans-serif;
@@ -208,6 +220,7 @@ function installListDisplay(core) {
         });
         titleBar.appendChild(closeBtn);
 
+        // 内容区
         const content = document.createElement("div");
         content.style.cssText = `
             position:relative;
@@ -217,7 +230,7 @@ function installListDisplay(core) {
             display:flex; flex-direction:column;
             align-items:center; justify-content:flex-start;
             padding-top:0px;
-            margin-top:0px;
+            margin-top:-30px;
             box-sizing:border-box;
         `;
         panel.appendChild(content);
@@ -248,12 +261,12 @@ function installListDisplay(core) {
         return panel;
     }
 
-    // ========== 面板切换逻辑 ==========
+    // ========== 面板切换 ==========
     function showList(index) {
         if (index < 0 || index >= listIds.length) return;
         currentIndex = index;
 
-        // 更新所有面板的激活样式
+        // 更新激活样式
         for (let i = 0; i < listIds.length; i++) {
             const p = displays[listIds[i]].panel;
             if (i === index) {
@@ -265,33 +278,26 @@ function installListDisplay(core) {
             }
         }
 
-        // 计算偏移使激活面板居中于 clipWrapper
-        const step = PANEL_WIDTH - 30; // 425px
-        const activeCenter = index * step + PANEL_WIDTH / 2; // 激活面板中心在 panelsWrapper 中的位置
-        const clipWidth = core.width; // clipWrapper 宽度 = 舞台宽度
-        const offset = clipWidth / 2 - activeCenter; // 偏移量
+        // 计算偏移使激活面板居中
+        const step = PANEL_WIDTH - 30; // 425
+        const rootPanelWidth = listIds.length * step + 30;
+        const activePanelCenter = index * step + PANEL_WIDTH / 2;
+        const offset = rootPanelWidth / 2 - activePanelCenter;
         panelsWrapper.style.transform = `translateX(${offset}px)`;
 
-        // 箭头显示/隐藏
-        prevBtn.style.display = index > 0 ? "" : "none";
-        nextBtn.style.display = index < listIds.length - 1 ? "" : "none";
-
-        // 显示遮罩和裁剪包裹器
         mask.style.display = "";
-        clipWrapper.style.display = "";
-
-        // 强制刷新内容
+        rootPanel.style.display = "block";
         dirty = true;
         rebuildIfDirty();
     }
 
     function closePanel() {
         mask.style.display = "none";
-        clipWrapper.style.display = "none";
+        rootPanel.style.display = "none";
         currentIndex = -1;
     }
 
-    // ========== 列表项构建/更新 ==========
+    // ========== 行元素构建/更新 ==========
     function updateLiContent(li, i, v) {
         const spans = li.querySelectorAll("span");
         if (spans[0]) {
@@ -341,11 +347,13 @@ function installListDisplay(core) {
                 fragment.appendChild(li);
             }
         }
+
         const bottom = document.createElement("li");
         bottom.style.cssText =
             "position:relative;min-height:48px;border-bottom-left-radius:24px;border-bottom-right-radius:24px;";
         bottom.innerHTML = `<img src="${BOTTOM_LINE}" style="width:196px;height:5px;position:absolute;bottom:15px;left:calc(50% - 98px);" />`;
         fragment.appendChild(bottom);
+
         listEl.innerHTML = "";
         listEl.appendChild(fragment);
     }
@@ -356,13 +364,14 @@ function installListDisplay(core) {
         rebuildCurrentList();
     }
 
-    // ========== 事件 ==========
+    // ========== 事件监听 ==========
     core.eventBus.on("list:updated", (updatedId) => {
-        if (currentIndex >= 0 && listIds[currentIndex] === updatedId)
+        if (currentIndex >= 0 && listIds[currentIndex] === updatedId) {
             dirty = true;
+        }
     });
 
-    // ========== Ticker ==========
+    // ========== 每帧更新 + 定时检测 ==========
     let tickCount = 0;
     core.app.ticker.add(() => {
         if (dirty) {
@@ -373,6 +382,7 @@ function installListDisplay(core) {
         if (currentIndex < 0) return;
         tickCount++;
         if (tickCount % 30 !== 0) return;
+
         const id = listIds[currentIndex];
         const list = _template[id]?.value || [];
         const newHash =
@@ -387,7 +397,7 @@ function installListDisplay(core) {
         }
     });
 
-    // ========== API ==========
+    // ========== 全局 API ==========
     window.__listDisplay__ = {
         show(id) {
             if (displays[id]) {
