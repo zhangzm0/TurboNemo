@@ -50,13 +50,12 @@ export function installTimer(core) {
         background:url(${TIMER_BG}) center/cover no-repeat;
         font-size:44px; font-family:'PingFangSC-Semibold','PingFang SC','Microsoft YaHei',sans-serif;
         font-weight:600; color:#43372E;
-        display:flex; align-items:center; justify-content:center;
-        padding-top:7px;
+        text-align:center; line-height:115px;
         pointer-events:none;
     `;
-    el.style.left = (timerSpec?.position?.x ?? -281) + "px";
-    el.style.top = -(timerSpec?.position?.y ?? 402) + "px";
-    el.textContent = "00:00";
+    el.style.left = (timerSpec?.position?.x ?? core.width / 2 - 164) + "px";
+    el.style.top = -(timerSpec?.position?.y ?? core.height / 2) + "px";
+    el.textContent = "00.00";
 
     if (!timerSpec?.visible) {
         el.style.display = "none";

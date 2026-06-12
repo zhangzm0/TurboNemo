@@ -99,4 +99,21 @@ ${body}        yield __core__._YIELD_FRAME;
             return `    break;\n` + c.compileNext(b);
         },
     },
+    
+    'warp': {
+        generator(c, b) {
+            let body = c.compileStatement(b, 'DO');
+            if (!body) return c.compileNext(b) || '';
+            return `\
+        // warp begin
+        {
+            let __warpSteps = 0;
+    ${body.replace(/yield __core__\._YIELD_FRAME;/g, 
+        `if (++__warpSteps >= 200) { __warpSteps = 0; yield __core__._YIELD_FRAME; }`
+    )}
+        }
+        // warp end
+    ` + c.compileNext(b);
+        },
+    },
 };
