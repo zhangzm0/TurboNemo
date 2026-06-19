@@ -4,9 +4,9 @@
   "description": "轻量级 Nemo 编程作品播放器，基于 PixiJS v5 协程调度引擎。",
   "private": true,
   "scripts": {
-    "dev": "webpack serve --mode development",
-    "build": "webpack --mode production",
-    "watch": "webpack --watch --mode development"
+    "dev": "node node_modules/webpack-cli/bin/cli.js serve --mode development",
+    "build": "node node_modules/webpack-cli/bin/cli.js --mode production",
+    "watch": "node node_modules/webpack-cli/bin/cli.js --watch --mode development"
   },
   "repository": {
     "type": "git",
