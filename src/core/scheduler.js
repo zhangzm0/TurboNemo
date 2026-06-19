@@ -34,10 +34,19 @@ class Scheduler {
         if (!task) return;
         task.state = 'stopped';
         this._running = this._running.filter(t => t.taskId !== taskId);
+        this._evtCleanup(task);
         this._eventBus.emit('task:stopped', { taskId });
     }
 
     stopAll() { for (const id of Object.keys(this._all)) this.stopTask(id); }
+
+    _evtCleanup(task) {
+        if (task._evtHandler) {
+            this._eventBus.off(task._evtEvent, task._evtHandler);
+            task._evtHandler = null;
+            task._evtEvent = null;
+        }
+    }
 
     pauseTask(taskId) {
         const task = this._all[taskId];
@@ -86,11 +95,20 @@ class Scheduler {
                 task.state = 'paused';
                 this._running = this._running.filter(t => t.taskId !== task.taskId);
                 if (value.event) {
-                    this._eventBus.once(value.event, (params) => {
+                    if (task._evtHandler) {
+                        this._eventBus.off(value.event, task._evtHandler);
+                    }
+                    task._evtEvent = value.event;
+                    task._evtHandler = (params) => {
+                        if (task.state === 'running') return;
+                        if (task.state !== 'paused' && task._restart?.restartFactory) {
+                            task.gen = task._restart.restartFactory();
+                        }
                         task._params = params;
                         task.state = 'running';
                         this._running.push(task);
-                    });
+                    };
+                    this._eventBus.on(value.event, task._evtHandler);
                 }
                 continue;
             }
