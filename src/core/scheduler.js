@@ -101,9 +101,6 @@ class Scheduler {
                     task._evtEvent = value.event;
                     task._evtHandler = (params) => {
                         if (task.state === 'running') return;
-                        if (task.state !== 'paused' && task._restart?.restartFactory) {
-                            task.gen = task._restart.restartFactory();
-                        }
                         task._params = params;
                         task.state = 'running';
                         this._running.push(task);

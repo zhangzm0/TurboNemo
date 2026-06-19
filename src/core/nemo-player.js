@@ -192,10 +192,6 @@ class NemoPlayer {
                     hatType: script.hatType,
                     blockList: script.blockList || [],
                     blockTree: script.blockTree,
-                    restartFactory: () => {
-                        const f = new Function(`return (${script.code})`)();
-                        return f(actor, screen, this.actorManager, this.screenManager, globalObj, this);
-                    },
                 };
                 this.scheduler.createTask(taskId, actorData.name, restartInfo);
                 this.scheduler.startTask(taskId, gen, actorData.name);
@@ -236,10 +232,6 @@ class NemoPlayer {
                     hatType: script.hatType,
                     blockList: script.blockList || [],
                     blockTree: script.blockTree,
-                    restartFactory: () => {
-                        const f = new Function(`return (${script.code})`)();
-                        return f(screen.bg, screen, this.actorManager, this.screenManager, globalObj, this);
-                    },
                 };
                 this.scheduler.createTask(taskId, sceneData.name, restartInfo);
                 this.scheduler.startTask(taskId, gen, sceneData.name);
