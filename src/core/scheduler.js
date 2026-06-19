@@ -34,19 +34,10 @@ class Scheduler {
         if (!task) return;
         task.state = 'stopped';
         this._running = this._running.filter(t => t.taskId !== taskId);
-        this._evtCleanup(task);
         this._eventBus.emit('task:stopped', { taskId });
     }
 
     stopAll() { for (const id of Object.keys(this._all)) this.stopTask(id); }
-
-    _evtCleanup(task) {
-        if (task._evtHandler) {
-            this._eventBus.off(task._evtEvent, task._evtHandler);
-            task._evtHandler = null;
-            task._evtEvent = null;
-        }
-    }
 
     pauseTask(taskId) {
         const task = this._all[taskId];
@@ -76,6 +67,22 @@ class Scheduler {
         this._running = this._running.filter(t => t.state !== 'stopped');
     }
 
+    pauseOtherEntityTasks(entityName) {
+        for (const task of this._running) {
+            if (task.entityName !== entityName) task.state = 'paused';
+        }
+        this._running = this._running.filter(t => t.state !== 'paused');
+    }
+
+    resumeEntityTasks(entityName) {
+        for (const task of Object.values(this._all)) {
+            if (task.entityName === entityName && task.state === 'paused') {
+                task.state = 'running';
+                this._running.push(task);
+            }
+        }
+    }
+
     tick() {
         for (const task of this._running) {
             if (task.state !== 'running') continue;
@@ -95,17 +102,11 @@ class Scheduler {
                 task.state = 'paused';
                 this._running = this._running.filter(t => t.taskId !== task.taskId);
                 if (value.event) {
-                    if (task._evtHandler) {
-                        this._eventBus.off(value.event, task._evtHandler);
-                    }
-                    task._evtEvent = value.event;
-                    task._evtHandler = (params) => {
-                        if (task.state === 'running') return;
+                    this._eventBus.once(value.event, (params) => {
                         task._params = params;
                         task.state = 'running';
                         this._running.push(task);
-                    };
-                    this._eventBus.on(value.event, task._evtHandler);
+                    });
                 }
                 continue;
             }

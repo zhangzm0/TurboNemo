@@ -168,6 +168,8 @@ class NemoPlayer {
                 ? this.screenManager.getByName(sceneData.name)
                 : this.screenManager.getCurrent();
             if (!screen) continue;
+            if (!screen.taskIds) screen.taskIds = [];
+            screen.taskIds.push(actorData.name);
             scripts.forEach((script, i) => {
                 console.log("编译产物", script.code);
                 console.log("blockTree?", !!script.blockTree);

@@ -66,8 +66,13 @@ ${body}    }
     },
     'set_scene_transition': {
         generator(c, b) {
-            const t = c.extractParams(b).type || 'none';
-            return `    __screens__.setTransition('${t}');\n` + c.compileNext(b);
+            const p = c.extractParams(b);
+            const t = p.transition || 'none';
+            const d = p.direction || '';
+            let name = t;
+            if ((t === 'slide' || t === 'bounce') && d) name = t + '_' + d;
+            else if (t === 'fadeInOut') name = 'fade_in_out';
+            return `    __screens__.setTransitionType('${name}');\n` + c.compileNext(b);
         },
     },
     'on_running_group_activated': {
@@ -85,12 +90,13 @@ ${body}    }
     'stop': {
         generator(c, b) {
             const scope = c.extractParams(b).scope;
-            switch (scope) {
-                case '1': return `    __core__.scheduler.stopTask(__core__.scheduler._currentTaskId);\n` + c.compileNext(b);
-                case '2': return `    __core__.scheduler.stopOtherTasks(self.name, __core__.scheduler._currentTaskId);\n` + c.compileNext(b);
-                case '3': return `    __core__.scheduler.stopOtherEntityTasks(self.name);\n` + c.compileNext(b);
-                default:  return `    __core__.scheduler.stopAll();\n` + c.compileNext(b);
-            }
+            if (scope === 1 || scope === '1')
+                return `    __core__.scheduler.stopTask(__core__.scheduler._currentTaskId);\n` + c.compileNext(b);
+            if (scope === 2 || scope === '2')
+                return `    __core__.scheduler.stopOtherTasks(self.name, __core__.scheduler._currentTaskId);\n` + c.compileNext(b);
+            if (scope === 3 || scope === '3')
+                return `    __core__.scheduler.pauseOtherEntityTasks(self.name);\n` + c.compileNext(b);
+            return `    __core__.scheduler.stopAll();\n` + c.compileNext(b);
         },
     },
 };

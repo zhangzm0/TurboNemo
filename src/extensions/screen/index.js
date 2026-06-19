@@ -33,6 +33,11 @@ export default {
                         core.eventBus.emit(`screen:activated:${actorName}`);
                     }
                 }
+                if (to && to.taskIds) {
+                    for (const actorName of to.taskIds) {
+                        core.scheduler.resumeEntityTasks(actorName);
+                    }
+                }
             });
         };
         core.screenManager.width = core.width;

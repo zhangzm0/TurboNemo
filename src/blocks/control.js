@@ -85,7 +85,7 @@ ${body}        yield __core__._YIELD_FRAME;
             const body = c.compileStatement(b, "DO");
             return (
                 `\
-        while (__screen__ === __screens__.getCurrent()) {
+        while (true) {
     ${body}        if (${cond}) break;
             yield __core__._YIELD_FRAME;
         }
