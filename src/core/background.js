@@ -3,10 +3,17 @@ class Background {
     constructor(tilingSprite, name) {
         this.sprite = tilingSprite;
         this.name = name;
-        this.type = 'screen';
+        this.type = 'background';
         this.costumes = [];
         this.currentCostume = 0;
     }
+
+    // 统一 scroll 语义 — 运动 hook 注入时会被跳过 (backfill 检查 !s.bg[name])
+    __moveTo(x, y) { this.sprite.tilePosition.x = x; this.sprite.tilePosition.y = -y; }
+    __setX(x)  { this.sprite.tilePosition.x = x; }
+    __setY(y)  { this.sprite.tilePosition.y = -y; }
+    __addX(dx) { this.sprite.tilePosition.x += dx; }
+    __addY(dy) { this.sprite.tilePosition.y -= dy; }
 
     addCostume(texture) {
         this.costumes.push({ texture, cp: { x: 0, y: 0 } });

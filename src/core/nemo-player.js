@@ -40,10 +40,11 @@ class NemoPlayer {
 
         this._globalHooks = {};
         this._screenHooks = {};
-        this._actorHooks = {};
+        this._selfHooks = {};
 
-        // 注入 actorHooks 到 actorManager
-        this.actorManager._actorHooks = this._actorHooks;
+        // 注入 selfHooks 到 actorManager 和 screenManager
+        this.actorManager._selfHooks = this._selfHooks;
+        this.screenManager._selfHooks = this._selfHooks;
         this.screenManager._screenHooks = this._screenHooks;
 
         this._extensions = [];
@@ -96,8 +97,8 @@ class NemoPlayer {
     screenHook(name, factory) {
         this._screenHooks[name] = factory;
     }
-    actorHook(name, factory) {
-        this._actorHooks[name] = factory;
+    selfHook(name, factory) {
+        this._selfHooks[name] = factory;
     }
 
     use(ext) {
@@ -124,6 +125,13 @@ class NemoPlayer {
                 ext.init(this, data);
             }
             if (ext.install) ext.install(this);
+        }
+        // 集中 backfill：所有 install 已跑完，把 selfHooks 补到已存在的实体上
+        for (const [name, factory] of Object.entries(this._selfHooks)) {
+            for (const a of this.actorManager.list)
+                if (!a[name]) a[name] = factory(a);
+            for (const s of this.screenManager.list)
+                if (s.bg && !s.bg[name]) s.bg[name] = factory(s.bg);
         }
         this._compileAll(bcm);
     }

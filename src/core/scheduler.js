@@ -69,7 +69,7 @@ class Scheduler {
 
     tick() {
         for (const task of this._running) {
-            if (task.state !== 'running') continue;  // ← 加这行
+            if (task.state !== 'running') continue;
             if (task.waitFrames > 0) { task.waitFrames--; continue; }
             const result = task.gen.next(task._params);
             task._params = null;

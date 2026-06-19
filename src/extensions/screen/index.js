@@ -9,7 +9,7 @@ export default {
             const d = data.scenes?.[id];
             if (!d) continue;
             const tex = core.assetLoader.getTexture(d.current_style_id) || PIXI.Texture.WHITE;
-            const screen = core.screenManager.createScreen(d.name, tex, w, h); // ✅ 用 d.name
+            const screen = core.screenManager.createScreen(d.name, tex, w, h);
             const bg = screen.bg;
             for (const sid of (d.styles || [])) {
                 const tex2 = core.assetLoader.getTexture(sid);
@@ -24,11 +24,16 @@ export default {
     install(core) {
         const _orig = core.screenManager.switchTo.bind(core.screenManager);
         core.screenManager.switchTo = function(index) {
-            const from = this._current;
-            _orig(index);
-            const to = this._current;
-            core.eventBus.emit('screen:switched', { from: from?.name, to: to?.name });
-            core.eventBus.emit(`screen:activated:${to.name}`);
+            _orig(index, (fromName, toName) => {
+                core.eventBus.emit('screen:switched', { from: fromName, to: toName });
+                core.eventBus.emit(`screen:activated:${toName}`);
+                const to = this._current || this.list.find(s => s.name === toName);
+                if (to && to.taskIds) {
+                    for (const actorName of to.taskIds) {
+                        core.eventBus.emit(`screen:activated:${actorName}`);
+                    }
+                }
+            });
         };
         core.screenManager.width = core.width;
         core.screenManager.height = core.height;
