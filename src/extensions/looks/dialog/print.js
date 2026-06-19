@@ -1,9 +1,8 @@
 // ==================== extensions/looks/dialog/print.js ====================
 import { createPanel, createDialogContainer } from './panel.js';
 
-const BASE = new URL('.', import.meta.url).href;
-const NEXT_ICON = BASE + "res/new_next_icon.png";
-const NEXT_ICON_ACTIVE = BASE + "res/new_next_icon_active.png";
+const NEXT_ICON = new URL('res/new_next_icon.png', import.meta.url).href;
+const NEXT_ICON_ACTIVE = new URL('res/new_next_icon_active.png', import.meta.url).href;
 
 function truncate(str, max) {
     if (!str) return "";

@@ -1,0 +1,27 @@
+{
+  "name": "nemo-player",
+  "version": "1.0.0",
+  "description": "轻量级 Nemo 编程作品播放器，基于 PixiJS v5 协程调度引擎。",
+  "private": true,
+  "scripts": {
+    "dev": "webpack serve --mode development",
+    "build": "webpack --mode production",
+    "watch": "webpack --watch --mode development"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/zhangzm0/TurboNemo.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "html-webpack-plugin": "^5.6.0",
+    "webpack": "^5.90.0",
+    "webpack-cli": "^5.1.4",
+    "webpack-dev-server": "^5.0.0"
+  },
+  "dependencies": {
+    "pixi.js-legacy": "^5.3.12"
+  }
+}

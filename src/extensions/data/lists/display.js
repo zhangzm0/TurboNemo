@@ -1,13 +1,9 @@
 // ==================== data/lists/display.js ====================
 import { _specs, _template, isList } from "../store.js";
 
-const BASE = new URL('.', import.meta.url).href;
-// 底部装饰线
-const BOTTOM_LINE = BASE + '../res/bottomLine.png';
-// 标题栏背景
-const TITLE_BG = BASE + '../res/list_title_bg.png';
-// 关闭按钮图标
-const CLOSE_BG = BASE + '../res/list_close_bg.png';
+const BOTTOM_LINE = new URL('../res/bottomLine.png', import.meta.url).href;
+const TITLE_BG = new URL('../res/list_title_bg.png', import.meta.url).href;
+const CLOSE_BG = new URL('../res/list_close_bg.png', import.meta.url).href;
 
 function truncate(str, max) {
     if (!str) return "";

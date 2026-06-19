@@ -1,9 +1,8 @@
 // ==================== extensions/looks/dialog/ask.js ====================
 import { createPanel, createDialogContainer } from './panel.js';
 
-const BASE = new URL('.', import.meta.url).href;
-const CONFIRM_BG = BASE + "res/ask_dialog_confirm.png";
-const CONFIRM_ACTIVE_BG = BASE + "res/ask_dialog_confirm2.png";
+const CONFIRM_BG = new URL('res/ask_dialog_confirm.png', import.meta.url).href;
+const CONFIRM_ACTIVE_BG = new URL('res/ask_dialog_confirm2.png', import.meta.url).href;
 
 function truncate(str, max) {
     if (!str) return "";
