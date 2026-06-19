@@ -38,22 +38,25 @@ ${body}`;
         'get_clone_num': {
             generator(c, b) {
                 const sf = b.querySelector('field[name="sprite"]');
-                const name = (sf?.textContent.trim() || '__self') === '__self' ? 'self.name' : `'${sf.textContent.trim()}'`;
+                const raw = sf?.textContent.trim() || '__self';
+                const name = raw === '__self' ? 'self.name' : `(__actors__._idToName?.['${raw}'] || '${raw}')`;
                 return `__actors__.getCloneCount(${name})`;
             },
         },
         'get_clone_index_property': {
             generator(c, b) {
                 const sf = b.querySelector('field[name="sprite"]');
-                const name = (sf?.textContent.trim() || '__self') === '__self' ? 'self.name' : `'${sf.textContent.trim()}'`;
+                const raw = sf?.textContent.trim() || '__self';
+                const name = raw === '__self' ? 'self.name' : `(__actors__._idToName?.['${raw}'] || '${raw}')`;
                 const idx = c.compileValue(b, 'index');
                 const attr = c.extractParams(b).attribute;
+                // 对应官方 EntityProperty 枚举: 0=X, 1=Y, 2=STYLE_INDEX, 3=ROTATION, 5=SIZE
                 const m = {
-                    'X': `__actors__.getCloneByIndex(${name}, ${idx})?.sprite?.x ?? 0`,
-                    'Y': `-(__actors__.getCloneByIndex(${name}, ${idx})?.sprite?.y ?? 0)`,
-                    'STYLE_INDEX': `__actors__.getCloneByIndex(${name}, ${idx})?.currentCostume ?? 0`,
-                    'ROTATION': `-(__actors__.getCloneByIndex(${name}, ${idx})?.sprite?.rotation ?? 0)`,
-                    'SIZE': `(__actors__.getCloneByIndex(${name}, ${idx})?.sprite?.scale?.x ?? 1) * 100`,
+                    0: `__actors__.getCloneByIndex(${name}, ${idx})?.sprite?.x ?? 0`,
+                    1: `-(__actors__.getCloneByIndex(${name}, ${idx})?.sprite?.y ?? 0)`,
+                    2: `__actors__.getCloneByIndex(${name}, ${idx})?.currentCostume ?? 0`,
+                    3: `-(__actors__.getCloneByIndex(${name}, ${idx})?.sprite?.rotation ?? 0)`,
+                    5: `(__actors__.getCloneByIndex(${name}, ${idx})?.sprite?.scale?.x ?? 1) * 100`,
                 };
                 return m[attr] || '0';
             },

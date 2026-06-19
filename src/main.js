@@ -41,11 +41,18 @@ const infoPromise = fetchWithTimeout(
 
 setLoading('TurboNemo', '正在初始化引擎...');
 
+const debugMode = params.get('debug') === '1';
+
 const core = new NemoPlayer({ container: 'body', width: 562, height: 900 });
 
 // 内置扩展
 core.use((await import('./extensions/screen/index.js')).default);
 core.use((await import('./extensions/actor/index.js')).default);
+
+// 调试扩展
+if (debugMode) {
+    core.use((await import('./debug/index.js')).default);
+}
 
 // 并行加载所有扩展
 const extList = [

@@ -5,7 +5,9 @@ export default {
     initData: { actors: 'actors.actors_dict', styles: 'styles.styles_dict' },
     init(core, data) {
         const bcm = core.assetLoader.bcm;
+        core.actorManager._idToName = {};
         for (const [actorId, actorData] of Object.entries(data.actors || {})) {
+            core.actorManager._idToName[actorId] = actorData.name;
             const styleId = actorData.current_style_id;
             const tex = core.assetLoader.getTexture(styleId) || PIXI.Texture.WHITE;
             const sprite = new PIXI.Sprite(tex);

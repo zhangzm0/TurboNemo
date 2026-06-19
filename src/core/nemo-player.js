@@ -134,6 +134,15 @@ class NemoPlayer {
         for (const [name, factory] of Object.entries(this._globalHooks))
             globalObj[name] = factory();
 
+        // 构建变量/列表 ID→名称 映射
+        const nameMap = {};
+        if (bcm.variable?.variable_dict) {
+            for (const [id, def] of Object.entries(bcm.variable.variable_dict)) {
+                nameMap[id] = def.name;
+            }
+        }
+        this._varNameMap = nameMap;
+
         // 编译角色脚本
         for (const actorData of Object.values(bcm.actors.actors_dict)) {
             if (!actorData.blocksXML) continue;
@@ -141,6 +150,7 @@ class NemoPlayer {
                 actorData.blocksXML,
                 actorData.name,
                 "actor",
+                nameMap,
             );
             if (!scripts || scripts.length === 0) continue;
             const actor = this.actorManager.getByName(actorData.name);
@@ -152,6 +162,7 @@ class NemoPlayer {
             if (!screen) continue;
             scripts.forEach((script, i) => {
                 console.log("编译产物", script.code);
+                console.log("blockTree?", !!script.blockTree);
                 const fn = new Function(`return (${script.code})`)();
                 const gen = fn(
                     actor,
@@ -171,6 +182,8 @@ class NemoPlayer {
                     entityName: actorData.name,
                     code: script.code,
                     hatType: script.hatType,
+                    blockList: script.blockList || [],
+                    blockTree: script.blockTree,
                 };
                 this.scheduler.createTask(taskId, actorData.name, restartInfo);
                 this.scheduler.startTask(taskId, gen, actorData.name);
@@ -184,6 +197,7 @@ class NemoPlayer {
                 sceneData.blocksXML,
                 sceneData.name,
                 "screen",
+                nameMap,
             );
             if (!scripts || scripts.length === 0) continue;
             const screen = this.screenManager.getByName(sceneData.name);
@@ -208,6 +222,8 @@ class NemoPlayer {
                     entityName: sceneData.name,
                     code: script.code,
                     hatType: script.hatType,
+                    blockList: script.blockList || [],
+                    blockTree: script.blockTree,
                 };
                 this.scheduler.createTask(taskId, sceneData.name, restartInfo);
                 this.scheduler.startTask(taskId, gen, sceneData.name);
