@@ -6,14 +6,16 @@ export default {
         'mirror': {
             generator(c, b) {
                 return `\
-            const __clone = __actors__.cloneActor(self.name);
-            if (__clone) {
-                for (const __t of Object.values(__core__.scheduler._all)) {
-                    if (__t.entityName === self.name && __t._restart?.hatType === 'start_as_a_mirror') {
-                        const __gen = __t._restart.factory(__clone, __screen__, __actors__, __screens__, __global__, __core__);
-                        const __tid = __clone.name + '_' + __t.taskId;
-                        __core__.scheduler.createTask(__tid, __clone.name);
-                        __core__.scheduler.startTask(__tid, __gen, __clone.name);
+            {
+                const __c = __actors__.cloneActor(self.name);
+                if (__c) {
+                    for (const __t of Object.values(__core__.scheduler._all)) {
+                        if (__t.entityName === self.name && __t._restart?.hatType === 'start_as_a_mirror') {
+                            const __g = __t._restart.factory(__c, __screen__, __actors__, __screens__, __global__, __core__);
+                            const __id = __c.name + '_' + __t.taskId;
+                            __core__.scheduler.createTask(__id, __c.name);
+                            __core__.scheduler.startTask(__id, __g, __c.name);
+                        }
                     }
                 }
             }
