@@ -56,13 +56,13 @@ export default {
                 if (target === '__mouse') {
                     return `\
     { const __m = __global__.__mouse__; const __dx = __m.x - self.sprite.x; const __dy = __m.y + self.sprite.y;
-    self.sprite.rotation = -Math.atan2(-__dy, __dx); }
+    self.sprite.rotation = Math.atan2(-__dy, __dx); }
 ` + c.compileNext(b);
                 }
                 const lookup = `(__actors__._idToName?.['${target}'] || '${target}')`;
                 return `\
     { const __t = __actors__.getByName(${lookup});
-    if (__t) { const __dx = __t.sprite.x - self.sprite.x; const __dy = __t.sprite.y - self.sprite.y; self.sprite.rotation = -Math.atan2(__dy, __dx); } }
+    if (__t) { const __dx = __t.sprite.x - self.sprite.x; const __dy = __t.sprite.y - self.sprite.y; self.sprite.rotation = Math.atan2(__dy, __dx); } }
 ` + c.compileNext(b);
             },
         },
@@ -81,37 +81,29 @@ export default {
         },
     },
     install(core) {
-        core.actorHook('__moveTo', (actor) => (x, y) => {
+        core.selfHook('__moveTo', (actor) => (x, y) => {
             actor.sprite.x = x;
             actor.sprite.y = y;
             core.eventBus.emit(`actor:moved:${actor.name}`, actor);
         });
-        core.actorHook('__setX', (actor) => (x) => {
+        core.selfHook('__setX', (actor) => (x) => {
             actor.sprite.x = x;
             core.eventBus.emit(`actor:moved:${actor.name}`, actor);
         });
-        core.actorHook('__setY', (actor) => (y) => {
+        core.selfHook('__setY', (actor) => (y) => {
             actor.sprite.y = y;
             core.eventBus.emit(`actor:moved:${actor.name}`, actor);
         });
-        core.actorHook('__addX', (actor) => (dx) => {
+        core.selfHook('__addX', (actor) => (dx) => {
             actor.sprite.x += dx;
+            if (actor.name === '视角') console.log('[视角 addX]', dx.toFixed(4), '→ x:', actor.sprite.x.toFixed(4));
             core.eventBus.emit(`actor:moved:${actor.name}`, actor);
         });
-        core.actorHook('__addY', (actor) => (dy) => {
+        core.selfHook('__addY', (actor) => (dy) => {
             actor.sprite.y += dy;
+            if (actor.name === '视角') console.log('[视角 addY]', dy.toFixed(4), '→ y:', actor.sprite.y.toFixed(4));
             core.eventBus.emit(`actor:moved:${actor.name}`, actor);
         });
 
-        // 给已存在角色补上
-        for (const actor of core.actorManager.list) {
-            if (!actor.__moveTo) {
-                actor.__moveTo = (x, y) => { actor.sprite.x = x; actor.sprite.y = y; core.eventBus.emit(`actor:moved:${actor.name}`, actor); };
-                actor.__setX = (x) => { actor.sprite.x = x; core.eventBus.emit(`actor:moved:${actor.name}`, actor); };
-                actor.__setY = (y) => { actor.sprite.y = y; core.eventBus.emit(`actor:moved:${actor.name}`, actor); };
-                actor.__addX = (dx) => { actor.sprite.x += dx; core.eventBus.emit(`actor:moved:${actor.name}`, actor); };
-                actor.__addY = (dy) => { actor.sprite.y += dy; core.eventBus.emit(`actor:moved:${actor.name}`, actor); };
-            }
-        }
     },
 };

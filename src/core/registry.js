@@ -4,7 +4,6 @@ class Registry {
     register(id, def) { this._blocks[id] = def; }
     registerAll(blocks) { for (const [id, def] of Object.entries(blocks)) this._blocks[id] = def; }
     get(id) { return this._blocks[id] || null; }
-    has(id) { return id in this._blocks; }
 }
 
 export { Registry };

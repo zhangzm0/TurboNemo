@@ -292,18 +292,11 @@ export default {
             if (!screen.penCanvas) screen.penCanvas = createPenLayer(screen);
         }
 
-        core.actorHook('_brush', (actor) => {
+        core.selfHook('_brush', (actor) => {
             const penCanvas = core.screenManager.getCurrent()?.penCanvas;
             if (!penCanvas) return null;
             return new Brush(penCanvas.canvas, penCanvas.ctx, actor, core.eventBus, markDirty);
         });
-
-        for (const actor of core.actorManager.list) {
-            if (!actor._brush) {
-                const penCanvas = core.screenManager.getCurrent()?.penCanvas;
-                if (penCanvas) actor._brush = new Brush(penCanvas.canvas, penCanvas.ctx, actor, core.eventBus, markDirty);
-            }
-        }
 
         core.app.ticker.add(() => {
             if (!dirty) return;

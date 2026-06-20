@@ -66,13 +66,23 @@ export const looksBlocks = {
         generator(c, b) { return c.compileNext(b) || ''; },
     },
     'self_set_effect_2': {
-        generator(c, b) { return c.compileNext(b) || ''; },
+        generator(c, b) {
+            const type = c.extractParams(b).scope || '0';
+            const val = c.compileValue(b, 'val') || '0';
+            return `    self._effects.set('${type}', ${val});\n` + c.compileNext(b);
+        },
     },
     'self_change_effect_2': {
-        generator(c, b) { return c.compileNext(b) || ''; },
+        generator(c, b) {
+            const type = c.extractParams(b).scope || '0';
+            const val = c.compileValue(b, 'steps') || '0';
+            return `    self._effects.change('${type}', ${val});\n` + c.compileNext(b);
+        },
     },
     'self_clear_effects': {
-        generator(c, b) { return c.compileNext(b) || ''; },
+        generator(c, b) {
+            return `    self._effects.clearAll();\n` + c.compileNext(b);
+        },
     },
     'self_translate_animation': {
         generator(c, b) { return c.compileNext(b) || ''; },

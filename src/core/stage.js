@@ -91,13 +91,6 @@ class Stage {
         this.globalHtmlLayer.style.height = h + 'px';
     }
 
-    nemoToLocal(x, y) {
-        return { x, y };
-    }
-
-    getScale() {
-        return this._scale;
-    }
 }
 
 export { Stage };

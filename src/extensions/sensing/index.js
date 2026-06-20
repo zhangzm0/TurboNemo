@@ -16,7 +16,5 @@ export default {
 
     install(core) {
         timer.install(core);
-        core.screenManager.width = core.width;
-        core.screenManager.height = core.height;
     },
 };

@@ -39,6 +39,7 @@ export default {
         }
     },
     install(core) {
+        core.actorManager._eventBus = core.eventBus;
         core.screenHook('__actors__', () => core.actorManager);
         core.globalHook('__actors__', () => core.actorManager);
     },

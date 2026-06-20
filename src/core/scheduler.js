@@ -4,11 +4,7 @@ class Scheduler {
         this._eventBus = eventBus;
         this._running = [];
         this._all = {};
-        this.MAX_STEPS = 10;
-        eventBus.on('task:start', ({ taskId, gen, entityName }) => this.startTask(taskId, gen, entityName));
-        eventBus.on('task:startAll', ({ tasks }) => { for (const t of tasks) this.startTask(t.taskId, t.gen, t.entityName); });
-        eventBus.on('task:stop', ({ taskId }) => this.stopTask(taskId));
-        eventBus.on('task:stopAll', () => this.stopAll());
+        this._currentTaskId = null;
     }
 
     createTask(taskId, entityName, restartInfo) {
@@ -60,13 +56,6 @@ class Scheduler {
         this._running = this._running.filter(t => t.state !== 'stopped');
     }
 
-    stopOtherEntityTasks(entityName) {
-        for (const task of this._running) {
-            if (task.entityName !== entityName) task.state = 'stopped';
-        }
-        this._running = this._running.filter(t => t.state !== 'stopped');
-    }
-
     pauseOtherEntityTasks(entityName) {
         for (const task of this._running) {
             if (task.entityName !== entityName) task.state = 'paused';
@@ -87,17 +76,19 @@ class Scheduler {
         for (const task of this._running) {
             if (task.state !== 'running') continue;
             if (task.waitFrames > 0) { task.waitFrames--; continue; }
+            this._currentTaskId = task.taskId;
             const result = task.gen.next(task._params);
             task._params = null;
             if (result.done) {
                 task.state = 'finished';
                 this._running = this._running.filter(t => t.taskId !== task.taskId);
-                this._eventBus.emit('task:finished', { taskId: task.taskId });
+                this._eventBus.emit('task:finished', { taskId: task.taskId, entityName: task.entityName });
+                this._currentTaskId = null;
                 continue;
             }
             const value = result.value;
-            if (value?._yieldType === 'frame') continue;
-            if (value?._yieldType === 'wait') { task.waitFrames = Math.max(1, value.frames); continue; }
+            if (value?._yieldType === 'frame') { this._currentTaskId = null; continue; }
+            if (value?._yieldType === 'wait') { task.waitFrames = Math.max(1, value.frames); this._currentTaskId = null; continue; }
             if (value?._yieldType === 'pause') {
                 task.state = 'paused';
                 this._running = this._running.filter(t => t.taskId !== task.taskId);
@@ -108,8 +99,10 @@ class Scheduler {
                         this._running.push(task);
                     });
                 }
+                this._currentTaskId = null;
                 continue;
             }
+            this._currentTaskId = null;
         }
     }
 }

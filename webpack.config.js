@@ -3,10 +3,13 @@ const HtmlWebpackPlugin = require('html-webpack-plugin');
 const webpack = require('webpack');
 
 module.exports = {
-    entry: './src/main.js',
+    entry: {
+        main: './src/main.js',
+        'compile-dump': './test/compile-dump.js',
+    },
     output: {
         path: path.resolve(__dirname, 'dist'),
-        filename: 'bundle.[contenthash:8].js',
+        filename: '[name].[contenthash:8].js',
         clean: true,
     },
     watchOptions: {
@@ -17,6 +20,14 @@ module.exports = {
         new HtmlWebpackPlugin({
             template: 'index.html',
             inject: true,
+            chunks: ['main'],
+            filename: 'index.html',
+        }),
+        new HtmlWebpackPlugin({
+            template: 'test/compile-dump.html',
+            inject: true,
+            chunks: ['compile-dump'],
+            filename: 'compile-dump.html',
         }),
         new webpack.ProvidePlugin({
             PIXI: 'pixi.js-legacy',

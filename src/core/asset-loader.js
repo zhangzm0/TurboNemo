@@ -53,6 +53,11 @@ class AssetLoader {
     }
 
     async loadFromWorkId(workId) {
+        // ponytail: local BCM for dev, API for production
+        try {
+            const localResp = await fetch('/work.bcm');
+            if (localResp.ok) return this.loadFromJSON(await localResp.json());
+        } catch (_) {}
         const resp = await fetch(`${API_BASE}/${workId}/source/public`);
         const data = await resp.json();
         const bcmUrl = data.work_urls?.[0];

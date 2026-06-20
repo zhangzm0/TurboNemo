@@ -16,7 +16,7 @@ function createStore(data) {
 }
 
 function installStore(core) {
-    core.actorHook('_vars', (actor) => {
+    core.selfHook('_vars', (actor) => {
         if (actor.isClone && actor._protoName) {
             const proto = core.actorManager.getByName(actor._protoName);
             const protoId = Object.values(core._bcm?.actors?.actors_dict || {})
@@ -36,12 +36,6 @@ function installStore(core) {
         return { ..._template };
     });
 
-    for (const actor of core.actorManager.list) {
-        if (!actor._vars) actor._vars = { ..._template };
-    }
-    for (const screen of core.screenManager.list) {
-        if (screen.bg && !screen.bg._vars) screen.bg._vars = { ..._template };
-    }
 }
 
 function isList(id) { return _specs[id]?.type === 'list'; }

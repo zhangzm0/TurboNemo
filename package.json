@@ -22,6 +22,7 @@
     "webpack-dev-server": "^5.0.0"
   },
   "dependencies": {
-    "pixi.js-legacy": "^5.3.12"
+    "pixi.js-legacy": "^5.3.12",
+    "puppeteer-core": "^25.1.0"
   }
 }

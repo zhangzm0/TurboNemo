@@ -42,7 +42,6 @@ class NemoPlayer {
         this._screenHooks = {};
         this._selfHooks = {};
 
-        // 注入 selfHooks 到 actorManager 和 screenManager
         this.actorManager._selfHooks = this._selfHooks;
         this.screenManager._selfHooks = this._selfHooks;
         this.screenManager._screenHooks = this._screenHooks;
@@ -74,12 +73,9 @@ class NemoPlayer {
 
         this.globalHook("__mouse__", () => this._mouse);
 
-        // 每帧重置 click
         this.app.ticker.add(() => {
             this._mouse.click = false;
         });
-
-        this.globalHook("__mouse__", () => this._mouse);
 
         this._fps = 0;
         this._frameCount = 0;
@@ -126,7 +122,6 @@ class NemoPlayer {
             }
             if (ext.install) ext.install(this);
         }
-        // 集中 backfill：所有 install 已跑完，把 selfHooks 补到已存在的实体上
         for (const [name, factory] of Object.entries(this._selfHooks)) {
             for (const a of this.actorManager.list)
                 if (!a[name]) a[name] = factory(a);
@@ -136,13 +131,11 @@ class NemoPlayer {
         this._compileAll(bcm);
     }
 
-    // src/core/nemo-player.js - _compileAll 方法
     _compileAll(bcm) {
         const globalObj = {};
         for (const [name, factory] of Object.entries(this._globalHooks))
             globalObj[name] = factory();
 
-        // 构建变量/列表 ID→名称 映射
         const nameMap = {};
         if (bcm.variable?.variable_dict) {
             for (const [id, def] of Object.entries(bcm.variable.variable_dict)) {
@@ -162,7 +155,6 @@ class NemoPlayer {
             );
             if (!scripts || scripts.length === 0) continue;
             const actor = this.actorManager.getByName(actorData.name);
-            // ✅ 按 scene_id 找到对应的 screen
             const sceneData = bcm.scenes.scenes_dict[actorData.scene_id];
             const screen = sceneData
                 ? this.screenManager.getByName(sceneData.name)
@@ -171,8 +163,7 @@ class NemoPlayer {
             if (!screen.taskIds) screen.taskIds = [];
             screen.taskIds.push(actorData.name);
             scripts.forEach((script, i) => {
-                console.log("编译产物", script.code);
-                console.log("blockTree?", !!script.blockTree);
+                console.log(`[actor:${actorData.name}]`, script.code);
                 const fn = new Function(`return (${script.code})`)();
                 const gen = fn(
                     actor,
@@ -238,6 +229,31 @@ class NemoPlayer {
                 this.scheduler.createTask(taskId, sceneData.name, restartInfo);
                 this.scheduler.startTask(taskId, gen, sceneData.name);
             });
+        }
+    }
+
+    restart() {
+        this.scheduler.stopAll();
+        this._mouse.down = false;
+        this._mouse.click = false;
+
+        const globalObj = {};
+        for (const [name, factory] of Object.entries(this._globalHooks))
+            globalObj[name] = factory();
+
+        for (const task of Object.values(this.scheduler._all)) {
+            if (task.state === 'stopped' && task._restart) {
+                const info = task._restart;
+                const self = this.actorManager.getByName(info.entityName)
+                    || this.screenManager.getByName(info.entityName)?.bg;
+                if (!self) continue;
+                const screen = this.screenManager.list.find(s =>
+                    s.name === info.entityName || s.taskIds?.includes(info.entityName)
+                );
+                if (!screen) continue;
+                const gen = info.factory(self, screen, this.actorManager, this.screenManager, globalObj, this);
+                this.scheduler.startTask(task.taskId, gen, info.entityName);
+            }
         }
     }
 

@@ -41,7 +41,7 @@ ${body}`;
             generator(c, b) {
                 const sf = b.querySelector('field[name="sprite"]');
                 const raw = sf?.textContent.trim() || '__self';
-                const name = raw === '__self' ? 'self.name' : `(__actors__._idToName?.['${raw}'] || '${raw}')`;
+                const name = raw === '__self' ? '(self._protoName || self.name)' : `(__actors__._idToName?.['${raw}'] || '${raw}')`;
                 return `__actors__.getCloneCount(${name})`;
             },
         },
@@ -49,7 +49,7 @@ ${body}`;
             generator(c, b) {
                 const sf = b.querySelector('field[name="sprite"]');
                 const raw = sf?.textContent.trim() || '__self';
-                const name = raw === '__self' ? 'self.name' : `(__actors__._idToName?.['${raw}'] || '${raw}')`;
+                const name = raw === '__self' ? '(self._protoName || self.name)' : `(__actors__._idToName?.['${raw}'] || '${raw}')`;
                 const idx = c.compileValue(b, 'index');
                 const attr = c.extractParams(b).attribute;
                 // 对应官方 EntityProperty 枚举: 0=X, 1=Y, 2=STYLE_INDEX, 3=ROTATION, 5=SIZE

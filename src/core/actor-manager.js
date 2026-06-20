@@ -6,7 +6,7 @@ class ActorManager {
         this.list = [];
         this._byName = {};
         this._clones = {};
-        this._actorHooks = {};
+        this._selfHooks = {};
         this.MAX_CLONES = 300;
     }
 
@@ -14,7 +14,7 @@ class ActorManager {
         const actor = new Actor(sprite, name);
         this.list.push(actor);
         this._byName[name] = actor;
-        for (const [hookName, factory] of Object.entries(this._actorHooks || {})) {
+        for (const [hookName, factory] of Object.entries(this._selfHooks || {})) {
             actor[hookName] = factory(actor);
         }
         return actor;
@@ -60,8 +60,9 @@ class ActorManager {
         clone._protoName = protoName;
         clone.costumes = { ...proto.costumes };
         clone.currentCostume = proto.currentCostume;
+        clone.camp = proto.camp;
 
-        for (const [hookName, factory] of Object.entries(this._actorHooks || {})) {
+        for (const [hookName, factory] of Object.entries(this._selfHooks || {})) {
             clone[hookName] = factory(clone);
         }
 
@@ -113,6 +114,11 @@ class ActorManager {
         this._eventBus?.emit('clone:removed', { cloneName });
     }
 
+    hitTest(a, b) {
+        if (!a || !b) return false;
+        const ba = a.getBounds(), bb = b.getBounds();
+        return ba.x < bb.x + bb.width && ba.x + ba.width > bb.x && ba.y < bb.y + bb.height && ba.y + ba.height > bb.y;
+    }
     isClone(name) { return name in this._clones; }
     getCloneCount(protoName) {
         let count = 0;

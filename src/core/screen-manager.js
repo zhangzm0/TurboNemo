@@ -1,13 +1,17 @@
 // src/core/screen-manager.js
 import { Screen } from './screen.js';
 import { Background } from './background.js';
+import { Transition } from './transition.js';
 
 class ScreenManager {
     constructor(stage) {
         this.stage = stage;
         this.list = [];
         this._current = null;
+        this._selfHooks = {};
         this._screenHooks = {};
+        this._transitionType = 'none';
+        this._transition = new Transition();
     }
 
     createScreen(name, bgTexture, w, h) {
@@ -34,35 +38,51 @@ class ScreenManager {
         for (const [hookName, factory] of Object.entries(this._screenHooks || {})) {
             screen[hookName] = factory(screen);
         }
+        for (const [hookName, factory] of Object.entries(this._selfHooks || {})) {
+            background[hookName] = factory(background);
+        }
         this.list.push(screen);
         this.stage.screensContainer.addChild(container);
         this.stage.screensHtmlContainer.appendChild(htmlDiv);
         return screen;
     }
 
-    switchTo(index) {
+    setTransitionType(type) { this._transitionType = type; }
+
+    switchTo(index, onSwitched) {
         const screen = this.list[index - 1];
         if (!screen || screen === this._current) return;
-        if (this._current) {
-            this._current.container.visible = false;
-            this._current.htmlDiv.style.display = 'none';
+
+        const from = this._current;
+        const done = () => {
+            if (from) { from.container.visible = false; from.htmlDiv.style.display = 'none'; }
+            screen.htmlDiv.style.display = '';
+            this._current = screen;
+            if (onSwitched) onSwitched(from?.name, screen.name);
+        };
+
+        if (this._transitionType !== 'none' && from) {
+            screen.container.visible = true;
+            this._transition.run(
+                this._transitionType,
+                from.container,
+                screen.container,
+                this.width || 562,
+                this.height || 900,
+                done,
+            );
+            this._transitionType = 'none';
+        } else {
+            if (from) { from.container.visible = false; from.htmlDiv.style.display = 'none'; }
+            screen.container.visible = true;
+            screen.htmlDiv.style.display = '';
+            this._current = screen;
+            if (onSwitched) onSwitched(from?.name, screen.name);
         }
-        screen.container.visible = true;
-        screen.htmlDiv.style.display = '';
-        this._current = screen;
     }
 
     getCurrent() { return this._current; }
     getByName(name) { return this.list.find(s => s.name === name) || null; }
-    addScreenLayer(name) {
-        for (const screen of this.list) {
-            const layer = new PIXI.Container();
-            layer.name = name;
-            screen.container.addChild(layer);
-            screen.layers[name] = layer;
-        }
-    }
-    // screen-manager.js
     getCurrentIndex() {
         return this.list.indexOf(this._current) + 1;
     }

@@ -163,84 +163,14 @@ export default {
         },
     },
     install(core) {
-        // 获取小数位数（使用字符串方法避免浮点问题）
-        window.__getDecimalPlaces = function(num) {
-            if (Math.floor(num) === num) return 0;
-            const str = num.toString();
-            const match = str.match(/\.(\d+)$/);
-            // 处理科学计数法
-            if (!match) {
-                const sciMatch = str.match(/e-(\d+)/);
-                return sciMatch ? parseInt(sciMatch[1]) : 0;
-            }
-            return match[1].length;
-        };
+        // ponytail: native + 12dp rounding, covers visible float artifacts;
+        // add string-based exact math if accumulation errors surface in long loops
+        const R = (n) => Math.round(n * 1e12) / 1e12;
+        window.__calcAdd = (a, b) => R(a + b);
+        window.__calcSubtract = (a, b) => R(a - b);
+        window.__calcMultiply = (a, b) => R(a * b);
+        window.__calcDivide = (a, b) => R(a / b);
 
-        // 核心：将小数转为整数（使用字符串操作，彻底避免浮点误差）
-        window.__toIntegerPair = function(a, b) {
-            const strA = a.toString();
-            const strB = b.toString();
-            
-            // 分别获取小数部分
-            const partsA = strA.split('.');
-            const partsB = strB.split('.');
-            
-            const decA = partsA[1] || '';
-            const decB = partsB[1] || '';
-            
-            // 统一小数位数
-            const maxLen = Math.max(decA.length, decB.length);
-            const paddedA = decA + '0'.repeat(maxLen - decA.length);
-            const paddedB = decB + '0'.repeat(maxLen - decB.length);
-            
-            // 用字符串拼接构造整数
-            const intA = parseInt(partsA[0] + paddedA, 10);
-            const intB = parseInt(partsB[0] + paddedB, 10);
-            
-            return { intA, intB, factor: Math.pow(10, maxLen) };
-        };
-
-        // 精确加法
-        window.__calcAdd = function(a, b) {
-            const { intA, intB, factor } = window.__toIntegerPair(a, b);
-            return (intA + intB) / factor;
-        };
-
-        // 精确减法
-        window.__calcSubtract = function(a, b) {
-            const { intA, intB, factor } = window.__toIntegerPair(a, b);
-            return (intA - intB) / factor;
-        };
-
-        // 精确乘法（使用字符串转整数）
-        window.__calcMultiply = function(a, b) {
-            const strA = a.toString();
-            const strB = b.toString();
-            
-            const decA = (strA.split('.')[1] || '').length;
-            const decB = (strB.split('.')[1] || '').length;
-            
-            const intA = parseInt(strA.replace('.', ''), 10);
-            const intB = parseInt(strB.replace('.', ''), 10);
-            
-            return (intA * intB) / Math.pow(10, decA + decB);
-        };
-
-        // 精确除法
-        window.__calcDivide = function(a, b) {
-            const strA = a.toString();
-            const strB = b.toString();
-            
-            const decA = (strA.split('.')[1] || '').length;
-            const decB = (strB.split('.')[1] || '').length;
-            
-            const intA = parseInt(strA.replace('.', ''), 10);
-            const intB = parseInt(strB.replace('.', ''), 10);
-            
-            return (intA / intB) * Math.pow(10, decB - decA);
-        };
-
-        // 四舍五入
         window.__calcRound = function(num, precision) {
             const str = num.toExponential(precision + 2);
             return parseFloat(parseFloat(str).toFixed(precision));
