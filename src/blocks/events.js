@@ -10,12 +10,19 @@ export const eventBlocks = {
             const type = c.extractParams(b).type || 'mouse_click';
             const body = c.compileNext(b);
             if (!body) return `    // self_on_tap ${type} (empty)\n`;
+            // Resolve sprite field: __self or absent → self.name, otherwise look up by ID
+            const sf = b.querySelector(':scope > field[name="sprite"]');
+            const rawTarget = sf ? sf.textContent.trim() : '__self';
+            const targetExpr = rawTarget === '__self'
+                ? 'self.name'
+                : `(__actors__._idToName?.['${rawTarget}'] || __actors__._sceneIdToName?.['${rawTarget}'] || '${rawTarget}')`;
             if (type === 'mouse_down') {
                 return `\
     while (true) {
-        yield { _yieldType: "pause", event: \`actor:pointerdown:\${self.name}\` };
+        const __target = ${targetExpr};
+        yield { _yieldType: "pause", event: \`actor:pointerdown:\${__target}\` };
         let __down = true;
-        __core__.eventBus.once(\`actor:pointerup:\${self.name}\`, () => { __down = false; });
+        __core__.eventBus.once(\`actor:pointerup:\${__target}\`, () => { __down = false; });
         while (__down) {
 ${body}            yield __core__._YIELD_FRAME;
         }
@@ -25,7 +32,8 @@ ${body}            yield __core__._YIELD_FRAME;
             const event = type === 'mouse_up' ? 'pointerup' : 'pointertap';
             return `\
     while (true) {
-        const __params = yield { _yieldType: "pause", event: \`actor:${event}:\${self.name}\` };
+        const __target = ${targetExpr};
+        const __params = yield { _yieldType: "pause", event: \`actor:${event}:\${__target}\` };
 ${body}    }
 `;
         },
@@ -95,7 +103,7 @@ ${body}    }
             if (scope === 2 || scope === '2')
                 return `    __core__.scheduler.stopOtherTasks(self.name, __core__.scheduler._currentTaskId);\n` + c.compileNext(b);
             if (scope === 3 || scope === '3')
-                return `    __core__.scheduler.pauseOtherEntityTasks(self.name);\n` + c.compileNext(b);
+                return `    __core__.scheduler.stopOtherEntityTasks(self.name);\n` + c.compileNext(b);
             return `    __core__.scheduler.stopAll();\n` + c.compileNext(b);
         },
     },

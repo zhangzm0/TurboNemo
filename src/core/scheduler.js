@@ -8,7 +8,7 @@ class Scheduler {
     }
 
     createTask(taskId, entityName, restartInfo) {
-        const task = { taskId, entityName, gen: null, state: 'pending', waitFrames: 0, _params: null, _restart: restartInfo || null };
+        const task = { taskId, entityName, gen: null, state: 'pending', waitFrames: 0, _params: null, _restart: restartInfo || null, _eventWait: false };
         this._all[taskId] = task;
         return task;
     }
@@ -21,6 +21,7 @@ class Scheduler {
         task.state = 'running';
         task.waitFrames = 0;
         task._params = null;
+        task._eventWait = false;
         this._running.push(task);
         this._eventBus.emit('task:started', { taskId });
     }
@@ -39,6 +40,7 @@ class Scheduler {
         const task = this._all[taskId];
         if (!task || task.state !== 'running') return;
         task.state = 'paused';
+        task._eventWait = false;
         this._running = this._running.filter(t => t.taskId !== taskId);
     }
 
@@ -56,16 +58,28 @@ class Scheduler {
         this._running = this._running.filter(t => t.state !== 'stopped');
     }
 
+    stopOtherEntityTasks(entityName) {
+        for (const task of Object.values(this._all)) {
+            if (task.entityName !== entityName && task.state !== 'stopped' && task.state !== 'finished') {
+                task.state = 'stopped';
+            }
+        }
+        this._running = this._running.filter(t => t.state !== 'stopped');
+    }
+
     pauseOtherEntityTasks(entityName) {
         for (const task of this._running) {
-            if (task.entityName !== entityName) task.state = 'paused';
+            if (task.entityName !== entityName) {
+                task.state = 'paused';
+                task._eventWait = false;
+            }
         }
         this._running = this._running.filter(t => t.state !== 'paused');
     }
 
     resumeEntityTasks(entityName) {
         for (const task of Object.values(this._all)) {
-            if (task.entityName === entityName && task.state === 'paused') {
+            if (task.entityName === entityName && task.state === 'paused' && !task._eventWait) {
                 task.state = 'running';
                 this._running.push(task);
             }
@@ -93,8 +107,10 @@ class Scheduler {
                 task.state = 'paused';
                 this._running = this._running.filter(t => t.taskId !== task.taskId);
                 if (value.event) {
+                    task._eventWait = true;
                     this._eventBus.once(value.event, (params) => {
                         task._params = params;
+                        task._eventWait = false;
                         task.state = 'running';
                         this._running.push(task);
                     });

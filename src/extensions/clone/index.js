@@ -57,7 +57,7 @@ ${body}`;
                     0: `__actors__.getCloneByIndex(${name}, ${idx})?.sprite?.x ?? 0`,
                     1: `-(__actors__.getCloneByIndex(${name}, ${idx})?.sprite?.y ?? 0)`,
                     2: `__actors__.getCloneByIndex(${name}, ${idx})?.currentCostume ?? 0`,
-                    3: `-(__actors__.getCloneByIndex(${name}, ${idx})?.sprite?.rotation ?? 0)`,
+                    3: `-(__actors__.getCloneByIndex(${name}, ${idx})?.sprite?.rotation ?? 0) * 180 / Math.PI`,
                     5: `(__actors__.getCloneByIndex(${name}, ${idx})?.sprite?.scale?.x ?? 1) * 100`,
                 };
                 return m[attr] || '0';

@@ -5,6 +5,11 @@ export default {
     initData: { scenes: 'scenes.scenes_dict', scenesOrder: 'scenes.scenes_order' },
     init(core, data) {
         const w = core.width, h = core.height;
+        // 建立场景 ID → 名称映射，供 self_on_tap 的 sprite 字段解析使用
+        core.actorManager._sceneIdToName = {};
+        for (const [id, d] of Object.entries(data.scenes || {})) {
+            core.actorManager._sceneIdToName[id] = d.name;
+        }
         for (const id of (data.scenesOrder || [])) {
             const d = data.scenes?.[id];
             if (!d) continue;
@@ -46,5 +51,15 @@ export default {
         core.screenHook('broadcast', () => ({
             send(msg) { core.eventBus.emit(`broadcast:${msg}`, { message: msg }); },
         }));
+        // 为所有背景精灵添加指针事件，支持 self_on_tap 引用场景
+        for (const screen of core.screenManager.list) {
+            const bgSprite = screen.bg?.sprite;
+            if (!bgSprite) continue;
+            bgSprite.interactive = true;
+            bgSprite.on('pointertap', () => core.eventBus.emit(`actor:pointertap:${screen.name}`));
+            bgSprite.on('pointerdown', () => core.eventBus.emit(`actor:pointerdown:${screen.name}`));
+            bgSprite.on('pointerup', () => core.eventBus.emit(`actor:pointerup:${screen.name}`));
+            bgSprite.on('pointerupoutside', () => core.eventBus.emit(`actor:pointerup:${screen.name}`));
+        }
     },
 };

@@ -52,7 +52,7 @@ class Brush {
         this.color = '000000';
         this.alpha = 1;
         this.hsl = [0, 0, 0];
-        this.fillColor = '000000';
+        this.fillColor = null;
         this._r = 0; this._g = 0; this._b = 0;
         this._fillR = 0; this._fillG = 0; this._fillB = 0;
         this.updateColorCache();
@@ -61,10 +61,16 @@ class Brush {
         this.lastX = null;
         this.lastY = null;
         this.filling = false;
+        this.fillPoints = [];
 
         this._onMove = () => {
             if (this.down && this.actor.sprite) {
                 this.drawLine(this.actor.sprite.x, this.actor.sprite.y);
+            }
+        };
+        this._onFillMove = () => {
+            if (this.filling && this.actor.sprite) {
+                this.addFillPoint(this.actor.sprite.x, this.actor.sprite.y);
             }
         };
     }
@@ -76,6 +82,7 @@ class Brush {
         this._b = parseInt(hex.slice(4, 6), 16);
     }
     updateFillColorCache() {
+        if (!this.fillColor) return;
         const hex = this.fillColor;
         this._fillR = parseInt(hex.slice(0, 2), 16);
         this._fillG = parseInt(hex.slice(2, 4), 16);
@@ -113,7 +120,6 @@ class Brush {
     }
     drawLine(x, y) {
         if (this.lastX === null) { this.lastX = x; this.lastY = y; return; }
-        //if (x === this.lastX && y === this.lastY) return;
         const ctx = this.ctx;
         ctx.save();
         ctx.lineWidth = this.size;
@@ -121,40 +127,51 @@ class Brush {
         ctx.globalAlpha = this.alpha;
         ctx.lineCap = 'round';
         ctx.lineJoin = 'round';
-        if (this.filling) {
-            ctx.lineTo(this.toCanvasX(x), this.toCanvasY(y));
-            ctx.stroke();
-        } else {
-            ctx.beginPath();
-            ctx.moveTo(this.toCanvasX(this.lastX), this.toCanvasY(this.lastY));
-            ctx.lineTo(this.toCanvasX(x), this.toCanvasY(y));
-            // ctx.strokeRect(this.toCanvasX(x), this.toCanvasY(y), 40, 40);
-            // ctx.fillRect(this.toCanvasX(x), this.toCanvasY(y), 20, 20)
-            ctx.stroke();
-        }
+        ctx.beginPath();
+        ctx.moveTo(this.toCanvasX(this.lastX), this.toCanvasY(this.lastY));
+        ctx.lineTo(this.toCanvasX(x), this.toCanvasY(y));
+        ctx.stroke();
         ctx.restore();
         this.lastX = x;
         this.lastY = y;
         this.onDirty();
     }
     fillStart(x, y) {
-        this.filling = true;
+        if (!this.filling) {
+            this.filling = true;
+            this.eventBus.on(`actor:moved:${this.actor.name}`, this._onFillMove);
+        }
+        this.fillPoints = [];
+        this.fillPoints.push({ x: this.toCanvasX(x), y: this.toCanvasY(y) });
+    }
+    addFillPoint(x, y) {
+        if (!this.filling) return;
+        const cx = this.toCanvasX(x), cy = this.toCanvasY(y);
+        const last = this.fillPoints[this.fillPoints.length - 1];
+        if (last && Math.abs(last.x - cx) < 0.5 && Math.abs(last.y - cy) < 0.5) return;
+        this.fillPoints.push({ x: cx, y: cy });
+    }
+    fillEnd() {
+        if (!this.filling) return;
+        this.eventBus.off(`actor:moved:${this.actor.name}`, this._onFillMove);
+        if (this.fillPoints.length < 2) { this.filling = false; return; }
         const ctx = this.ctx;
         ctx.save();
-        ctx.fillStyle = `rgb(${this._fillR},${this._fillG},${this._fillB})`;
-        ctx.lineWidth = this.size;
-        ctx.lineCap = 'round';
+        // Use fill color if explicitly set, otherwise fall back to stroke/pen color
+        const r = this.fillColor ? this._fillR : this._r;
+        const g = this.fillColor ? this._fillG : this._g;
+        const b = this.fillColor ? this._fillB : this._b;
+        ctx.fillStyle = `rgb(${r},${g},${b})`;
         ctx.lineJoin = 'round';
         ctx.beginPath();
-        ctx.moveTo(this.toCanvasX(x), this.toCanvasY(y));
-    }
-    fillEnd(x, y) {
-        if (!this.filling) return;
-        const ctx = this.ctx;
-        ctx.lineTo(this.toCanvasX(x), this.toCanvasY(y));
+        ctx.moveTo(this.fillPoints[0].x, this.fillPoints[0].y);
+        for (let i = 1; i < this.fillPoints.length; i++) {
+            ctx.lineTo(this.fillPoints[i].x, this.fillPoints[i].y);
+        }
         ctx.closePath();
         ctx.fill();
         ctx.restore();
+        this.fillPoints = [];
         this.filling = false;
         this.onDirty();
     }
@@ -250,7 +267,7 @@ export default {
                 if (point === 'start') {
                     return `    self._brush.fillStart(self.sprite.x, self.sprite.y);\n` + c.compileNext(b);
                 }
-                return `    self._brush.fillEnd(self.sprite.x, self.sprite.y);\n` + c.compileNext(b);
+                return `    self._brush.fillEnd();\n` + c.compileNext(b);
             },
         },
         'set_fill_style': {
@@ -293,14 +310,17 @@ export default {
         }
 
         core.selfHook('_brush', (actor) => {
-            const penCanvas = core.screenManager.getCurrent()?.penCanvas;
+            const screen = actor.__screen__ || core.screenManager.getCurrent();
+            const penCanvas = screen?.penCanvas;
             if (!penCanvas) return null;
             return new Brush(penCanvas.canvas, penCanvas.ctx, actor, core.eventBus, markDirty);
         });
 
         core.app.ticker.add(() => {
             if (!dirty) return;
-            core.screenManager.getCurrent()?.penCanvas?.texture.update();
+            for (const screen of core.screenManager.list) {
+                screen.penCanvas?.texture.update();
+            }
             dirty = false;
         });
     },

@@ -53,9 +53,16 @@ class AssetLoader {
     }
 
     async loadFromWorkId(workId) {
-        // ponytail: local BCM for dev, API for production
+        // ?local=1 to load local work.bcm
+        if (new URLSearchParams(window.location.search).get('local') === '1') {
+            try {
+                const localResp = await fetch('/work.bcm');
+                if (localResp.ok) return this.loadFromJSON(await localResp.json());
+            } catch (_) {}
+        }
+        // Try local {workId}.bcm first, fall back to remote API
         try {
-            const localResp = await fetch('/work.bcm');
+            const localResp = await fetch(`/${workId}.bcm`);
             if (localResp.ok) return this.loadFromJSON(await localResp.json());
         } catch (_) {}
         const resp = await fetch(`${API_BASE}/${workId}/source/public`);

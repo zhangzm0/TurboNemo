@@ -20,7 +20,7 @@ export const sensingBlocks = {
             if (attr == '0') return `(__actors__.getByName(${lookup})?.sprite?.x ?? 0)`;
             if (attr == '1') return `(-(__actors__.getByName(${lookup})?.sprite?.y ?? 0))`;
             if (attr == '2') return `(__actors__.getByName(${lookup})?.currentCostume ?? 0)`;
-            if (attr == '3') return `(-(__actors__.getByName(${lookup})?.sprite?.rotation ?? 0))`;
+            if (attr == '3') return `(-(__actors__.getByName(${lookup})?.sprite?.rotation ?? 0) * 180 / Math.PI)`;
             if (attr == '4') return `((__actors__.getByName(${lookup})?.sprite?.scale?.x ?? 1) * 100)`;
             return '0';
         },

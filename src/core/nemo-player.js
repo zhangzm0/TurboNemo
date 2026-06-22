@@ -70,12 +70,9 @@ class NemoPlayer {
             this._mouse.down = false;
         });
         this.app.view.addEventListener("pointermove", updateMouse);
+        this.app.view.addEventListener("contextmenu", (e) => e.preventDefault());
 
         this.globalHook("__mouse__", () => this._mouse);
-
-        this.app.ticker.add(() => {
-            this._mouse.click = false;
-        });
 
         this._fps = 0;
         this._frameCount = 0;
@@ -84,6 +81,9 @@ class NemoPlayer {
         window.addEventListener("resize", resize);
         resize();
         this.app.ticker.add(() => this._tick());
+        this.app.ticker.add(() => {
+            this._mouse.click = false;
+        });
         this._YIELD_FRAME = { _yieldType: "frame" };
     }
 

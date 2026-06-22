@@ -47,8 +47,8 @@ export default {
                     });
                 }
                 const argObj = '{' + pNames.map((p, i) => `'${p.replace(/'/g, "\\'")}': ${args[i]}`).join(', ') + '}';
-                // 用固定 key 查找全局函数
-                return `__core__._callProc('__global__proc__:${name}', self, __screen__, __actors__, __screens__, __global__, __core__, ${argObj})`;
+                // 通过 yield* 委托到过程体，确保过程中的 yield 能被调度器正确处理
+                return `yield* __core__._callProcGenerator('__global__proc__:${name}', self, __screen__, __actors__, __screens__, __global__, __core__, ${argObj})`;
             },
         },
         'procedures_2_parameter': {
@@ -64,13 +64,10 @@ export default {
     },
     install(core) {
         core._procFns = {};
-        core._callProc = function(name, self, screen, actors, screens, globalObj, coreRef, paramsObj) {
+        core._callProcGenerator = function*(name, self, screen, actors, screens, globalObj, coreRef, paramsObj) {
             const factory = coreRef._procFns?.[name];
             if (!factory) return undefined;
-            const gen = factory(self, screen, actors, screens, globalObj, coreRef, paramsObj);
-            let result = gen.next();
-            while (!result.done) result = gen.next();
-            return result.value;
+            return yield* factory(self, screen, actors, screens, globalObj, coreRef, paramsObj);
         };
 
         // 直接从已加载的 bcm 注册过程

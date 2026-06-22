@@ -30,7 +30,7 @@ export default {
             if (sceneData) {
                 const screen = core.screenManager.getByName(sceneData.name);
                 
-                if (screen) { screen.actorLayer.addChild(sprite); screen.taskIds.push(actorData.name); }
+                if (screen) { screen.actorLayer.addChild(sprite); screen.taskIds.push(actorData.name); actor.__screen__ = screen; }
             }
             sprite.on('pointertap', () => core.eventBus.emit(`actor:pointertap:${actor.name}`));
             sprite.on('pointerdown', () => core.eventBus.emit(`actor:pointerdown:${actor.name}`));

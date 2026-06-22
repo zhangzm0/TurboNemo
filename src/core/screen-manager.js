@@ -22,6 +22,7 @@ class ScreenManager {
         const bg = new PIXI.TilingSprite(bgTexture, bgTexture.width, bgTexture.height);
         bg.name = 'bg';
         bg.anchor.set(0.5, 0.5);
+        bg.interactive = true;
         const scale = Math.max(w / bgTexture.width, h / bgTexture.height);
         // const scale = bgTexture.width > bgTexture.height ? w / bgTexture.width: h / bgTexture.height;
         bg.scale.set(scale, scale);
