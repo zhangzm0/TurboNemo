@@ -38,9 +38,14 @@ export default {
                         core.eventBus.emit(`screen:activated:${actorName}`);
                     }
                 }
-                if (to && to.taskIds) {
-                    for (const actorName of to.taskIds) {
-                        core.scheduler.resumeEntityTasks(actorName);
+                if (to) {
+                    // Resume scene-level scripts by screen name
+                    core.scheduler.resumeEntityTasks(to.name);
+                    // Resume actor-level scripts
+                    if (to.taskIds) {
+                        for (const actorName of to.taskIds) {
+                            core.scheduler.resumeEntityTasks(actorName);
+                        }
                     }
                 }
             });
@@ -51,7 +56,7 @@ export default {
         core.screenHook('broadcast', () => ({
             send(msg) { core.eventBus.emit(`broadcast:${msg}`, { message: msg }); },
         }));
-        // 为所有背景精灵添加指针事件，支持 self_on_tap 引用场景
+        // 为所有背景精灵添加指针事件，支持 self_on_tap
         for (const screen of core.screenManager.list) {
             const bgSprite = screen.bg?.sprite;
             if (!bgSprite) continue;
@@ -60,6 +65,21 @@ export default {
             bgSprite.on('pointerdown', () => core.eventBus.emit(`actor:pointerdown:${screen.name}`));
             bgSprite.on('pointerup', () => core.eventBus.emit(`actor:pointerup:${screen.name}`));
             bgSprite.on('pointerupoutside', () => core.eventBus.emit(`actor:pointerup:${screen.name}`));
+        }
+
+        // 延迟到第一帧发出初始 screen:activated，让所有 on_running_group_activated 脚本启动
+        const firstScreen = core.screenManager.getCurrent();
+        if (firstScreen && core.app?.ticker) {
+            const activate = () => {
+                core.eventBus.emit(`screen:activated:${firstScreen.name}`);
+                if (firstScreen.taskIds) {
+                    for (const actorName of firstScreen.taskIds) {
+                        core.eventBus.emit(`screen:activated:${actorName}`);
+                    }
+                }
+                core.app.ticker.remove(activate);
+            };
+            core.app.ticker.add(activate);
         }
     },
 };

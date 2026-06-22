@@ -103,7 +103,7 @@ ${body}    }
             if (scope === 2 || scope === '2')
                 return `    __core__.scheduler.stopOtherTasks(self.name, __core__.scheduler._currentTaskId);\n` + c.compileNext(b);
             if (scope === 3 || scope === '3')
-                return `    __core__.scheduler.stopOtherEntityTasks(self.name);\n` + c.compileNext(b);
+                return `    __core__.scheduler.pauseOtherEntityTasks(self.name);\n` + c.compileNext(b);
             return `    __core__.scheduler.stopAll();\n` + c.compileNext(b);
         },
     },

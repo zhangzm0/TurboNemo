@@ -12,7 +12,7 @@ export default {
         'self_go_forward': {
             generator(c, b) {
                 const s = c.compileValue(b, 'steps');
-                return `    { const __r = self.sprite.rotation; self.__moveTo(self.sprite.x + Math.cos(-__r) * ${s}, self.sprite.y - Math.sin(-__r) * ${s}); }\n` + c.compileNext(b);
+                return `    { const __r = self.sprite.rotation; const __dx = Math.cos(-__r) * ${s}, __dy = -Math.sin(-__r) * ${s}; if (self.sprite.tilePosition) { self.__addX(__dx); self.__addY(__dy); } else { self.__moveTo(self.sprite.x + __dx, self.sprite.y + __dy); } }\n` + c.compileNext(b);
             },
         },
         'self_rotate': {
