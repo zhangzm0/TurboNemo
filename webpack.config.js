@@ -37,12 +37,7 @@ module.exports = {
         static: './',
         host: '0.0.0.0',
         port: 8158,
-        hot: true,
-        watchFiles: {
-            paths: ['src/**/*'],
-            options: {
-                ignored: /node_modules/,
-            },
-        },
+        hot: false,
+        liveReload: false,
     },
 };
