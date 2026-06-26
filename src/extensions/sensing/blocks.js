@@ -132,4 +132,9 @@ export const sensingBlocks = {
     },
     'mobile__get_voice_volume': { generator(c, b) { return '0'; } },
     'mobile__enable_voice_detection': { generator(c, b) { return c.compileNext(b) || ''; } },
+    'user_id_get': {
+        generator(c, b) {
+            return `"guest"`;
+        },
+    },
 };

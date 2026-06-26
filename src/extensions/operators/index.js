@@ -120,10 +120,21 @@ export default {
                 return { TRUE: 'true', FALSE: 'false' }[b2] || 'false'; 
             } 
         },
-        'logic_negate': { 
-            generator(c, b) { 
-                return `!(${c.compileValue(b, 'BOOL')})`; 
-            } 
+        'logic_negate': {
+            generator(c, b) {
+                return `!(${c.compileValue(b, 'BOOL')})`;
+            }
+        },
+        'logic_empty': {
+            generator(c, b) {
+                const val = c.compileValue(b, 'VALUE');
+                return `(${val} === '' || ${val} == null || ${val} === 0)`;
+            },
+        },
+        'get_split_options': {
+            generator(c, b) {
+                return `(__core__._bcm?.split_options?.options_dict ? Object.values(__core__._bcm.split_options.options_dict).map(o => o.name) : [",", " ", "-"])`;
+            },
         },
         'text_join': {
             generator(c, b) {

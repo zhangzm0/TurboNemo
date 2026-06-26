@@ -66,6 +66,20 @@ export default {
 ` + c.compileNext(b);
             },
         },
+        'self_set_rotation_type': {
+            generator(c, b) {
+                const type = c.extractParams(b).rotation_type || '2';
+                return `    self.rotationType = '${type}';\n` + c.compileNext(b);
+            },
+        },
+        'self_glide_to': {
+            generator(c, b) {
+                const t = c.compileValue(b, 'time');
+                const x = c.compileValue(b, 'x');
+                const y = c.compileValue(b, 'y');
+                return `    yield* self.__glideTo(${t}, ${x}, -(${y}));\n` + c.compileNext(b);
+            },
+        },
         'self_move_specify': {
             generator(c, b) {
                 const target = c.extractParams(b).target;
@@ -102,6 +116,28 @@ export default {
         core.selfHook('__addY', (actor) => (dy) => {
             actor.sprite.y += dy;
             if (actor.name === '视角') console.log('[视角 addY]', dy.toFixed(4), '→ y:', actor.sprite.y.toFixed(4));
+            core.eventBus.emit(`actor:moved:${actor.name}`, actor);
+        });
+        core.selfHook('__glideTo', (actor) => function*(time, x, y) {
+            const startX = actor.sprite.x;
+            const startY = actor.sprite.y;
+            if (time <= 0) {
+                actor.sprite.x = x;
+                actor.sprite.y = y;
+                core.eventBus.emit(`actor:moved:${actor.name}`, actor);
+                return;
+            }
+            const startTime = performance.now();
+            let elapsed = 0;
+            while (elapsed < time) {
+                elapsed = (performance.now() - startTime) / 1000;
+                const t = Math.min(elapsed / time, 1);
+                actor.sprite.x = startX + (x - startX) * t;
+                actor.sprite.y = startY + (y - startY) * t;
+                yield;
+            }
+            actor.sprite.x = x;
+            actor.sprite.y = y;
             core.eventBus.emit(`actor:moved:${actor.name}`, actor);
         });
 
