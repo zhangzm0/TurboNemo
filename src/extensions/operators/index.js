@@ -133,7 +133,8 @@ export default {
         },
         'get_split_options': {
             generator(c, b) {
-                return `(__core__._bcm?.split_options?.options_dict ? Object.values(__core__._bcm.split_options.options_dict).map(o => o.name) : [",", " ", "-"])`;
+                const option = b.querySelector(':scope > field[name="option"]')?.textContent.trim() || '';
+                return `(__core__._bcm?.split_options?.options_dict?.['${option}']?.name || '${option}')`;
             },
         },
         'text_join': {

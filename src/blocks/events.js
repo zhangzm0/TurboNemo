@@ -107,4 +107,34 @@ ${body}    }
             return `    __core__.scheduler.stopAll();\n` + c.compileNext(b);
         },
     },
+    'on_swipe': {
+        isHat: true,
+        generator(c, b) {
+            const dir = b.querySelector(':scope > field[name="type"]')?.textContent.trim() || 'left';
+            const body = c.compileNext(b);
+            if (!body) return `    // on_swipe ${dir} (empty)\n`;
+            return `\
+    while (true) {
+        const __params = yield { _yieldType: "pause", event: "stage:swipe:${dir}" };
+${body}    }
+`;
+        },
+    },
+    'restart': {
+        generator(c, b) {
+            return `\
+    {
+        const __task = __core__.scheduler._all[__core__.scheduler._currentTaskId];
+        if (__task && __task._restart) {
+            const __info = __task._restart;
+            __core__.scheduler.stopTask(__core__.scheduler._currentTaskId);
+            const __self2 = __actors__.getByName(__info.entityName) || __screens__.getByName(__info.entityName)?.bg || self;
+            const __gen2 = __info.factory(__self2, __screen__, __actors__, __screens__, __global__, __core__);
+            __core__.scheduler.startTask(__core__.scheduler._currentTaskId, __gen2, __info.entityName);
+        }
+        return;
+    }
+`;
+        },
+    },
 };

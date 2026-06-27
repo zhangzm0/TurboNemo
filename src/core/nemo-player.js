@@ -54,6 +54,8 @@ class NemoPlayer {
         this.registry.registerAll(controlBlocks);
 
         this._mouse = { x: 0, y: 0, down: false, click: false };
+        this._swipe = { startX: 0, startY: 0, tracking: false };
+        const SWIPE_THRESHOLD = 30;
         const updateMouse = (e) => {
             const rect = this.app.view.getBoundingClientRect();
             const scaleX = this.width / rect.width;
@@ -65,9 +67,28 @@ class NemoPlayer {
             this._mouse.down = true;
             this._mouse.click = true;
             updateMouse(e);
+            this._swipe.startX = this._mouse.x;
+            this._swipe.startY = this._mouse.y;
+            this._swipe.tracking = true;
         });
-        this.app.view.addEventListener("pointerup", () => {
+        this.app.view.addEventListener("pointerup", (e) => {
             this._mouse.down = false;
+            if (this._swipe.tracking) {
+                updateMouse(e);
+                const dx = this._mouse.x - this._swipe.startX;
+                const dy = this._mouse.y - this._swipe.startY;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                if (dist >= SWIPE_THRESHOLD) {
+                    let dir;
+                    if (Math.abs(dx) > Math.abs(dy)) {
+                        dir = dx > 0 ? 'right' : 'left';
+                    } else {
+                        dir = dy > 0 ? 'down' : 'up';
+                    }
+                    this.eventBus.emit(`stage:swipe:${dir}`);
+                }
+                this._swipe.tracking = false;
+            }
         });
         this.app.view.addEventListener("pointermove", updateMouse);
         this.app.view.addEventListener("contextmenu", (e) => e.preventDefault());

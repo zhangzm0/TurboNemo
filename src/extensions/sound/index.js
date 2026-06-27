@@ -5,16 +5,29 @@ export default {
     initData: { sounds: 'audios.sounds' },
     init(core, data) { this._sounds = data.sounds || {}; },
     blocks: {
-        'audio__play_audio': {
+        // shadow value blocks that return the selected audio ID
+        'sound_get': {
             generator(c, b) {
                 const id = b.querySelector(':scope > field[name="audio"]')?.textContent.trim() || '';
-                return `    __global__.__sound__.play('${id}');\n` + c.compileNext(b);
+                return `'${id}'`;
+            },
+        },
+        'sound_get_all': {
+            generator(c, b) {
+                const id = b.querySelector(':scope > field[name="audio"]')?.textContent.trim() || '__all_sounds';
+                return `'${id}'`;
+            },
+        },
+        'audio__play_audio': {
+            generator(c, b) {
+                const id = c.compileValue(b, 'audio');
+                return `    __global__.__sound__.play(${id});\n` + c.compileNext(b);
             },
         },
         'audio__play_audio_and_wait': {
             generator(c, b) {
-                const id = b.querySelector(':scope > field[name="audio"]')?.textContent.trim() || '';
-                return `    { const __ev = __global__.__sound__.playAndWait('${id}'); if (__ev) yield { _yieldType: "pause", event: __ev }; }\n` + c.compileNext(b);
+                const id = c.compileValue(b, 'audio');
+                return `    { const __ev = __global__.__sound__.playAndWait(${id}); if (__ev) yield { _yieldType: "pause", event: __ev }; }\n` + c.compileNext(b);
             },
         },
         'audio__stop_all_audios': {

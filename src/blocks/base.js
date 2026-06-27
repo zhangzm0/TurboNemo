@@ -5,7 +5,12 @@ export const baseBlocks = {
             const f = b.querySelector('field[name="NUM"]');
             const v = f ? f.textContent.trim() : '0';
             const n = Number(v);
-            return isNaN(n) || v === '' ? v : n;
+            if (isNaN(n) || v === '') {
+                // allow_text="true" — non-numeric placeholder like a param name
+                // Return quoted string to avoid ReferenceError
+                return `'${v.replace(/'/g, "\\'").replace(/\n/g, '\\n')}'`;
+            }
+            return n;
         },
     },
     'text': {
