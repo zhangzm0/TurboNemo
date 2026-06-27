@@ -105,7 +105,26 @@ export const sensingBlocks = {
             return `(function(){ var __a=__actors__.getByName(${la}),__b=__actors__.getByName(${lb}); if(!__a?.sprite||!__b?.sprite) return false; return __actors__.hitTest(__a.sprite,__b.sprite); })()`;
         },
     },
-    'bump_into_color': { generator(c, b) { return 'false'; } },
+    'bump_into_color': {
+        generator(c, b) {
+            const sf = b.querySelector(':scope > field[name="sprite"]');
+            const target = sf ? sf.textContent.trim() : '__self';
+            const nameExpr = target === '__self'
+                ? 'self.name'
+                : `(__actors__._idToName?.['${target}'] || '${target}')`;
+            const rawColor = c.compileValue(b, 'color') || '"#ffffff"';
+            // strip '#' from string literal; for dynamic expressions, use .replace
+            let colorExpr;
+            if (rawColor.startsWith('"#') && rawColor.endsWith('"')) {
+                colorExpr = `"${rawColor.slice(2, -1)}"`;
+            } else if (rawColor.startsWith("'#") && rawColor.endsWith("'")) {
+                colorExpr = `'${rawColor.slice(2, -1)}'`;
+            } else {
+                colorExpr = `(typeof (${rawColor}) === 'string' ? (${rawColor}).replace(/^#/, '') : 'ffffff')`;
+            }
+            return `__actors__.checkBumpedColor(${nameExpr}, ${colorExpr})`;
+        },
+    },
     'self_out_of_boundary': {
         generator(c, b) {
             return `(function(){ var __hw = __screens__.width/2, __hh = __screens__.height/2; return Math.abs(self.sprite.x) > __hw || Math.abs(self.sprite.y) > __hh; })()`;
