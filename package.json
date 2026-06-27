@@ -23,6 +23,7 @@
   },
   "dependencies": {
     "pixi.js-legacy": "^5.3.12",
+    "pixi-ppi": "^1.0.1",
     "puppeteer-core": "^25.1.0"
   }
 }

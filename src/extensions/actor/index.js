@@ -1,4 +1,14 @@
 // src/extensions/actor/index.js
+// src/extensions/actor/index.js
+import PPI from '../ppi.js';
+
+function ppiCheck(sprite, e, threshold) {
+    const pos = e.getLocalPosition(sprite);
+    const xline = Math.floor(pos.x + sprite.width / 2);
+    const yline = Math.floor(pos.y + sprite.height / 2);
+    return PPI.solve(sprite, xline, yline) > threshold;
+}
+
 export default {
     name: 'actor',
     version: '1.0.0',
@@ -29,16 +39,24 @@ export default {
             const sceneData = bcm.scenes.scenes_dict[actorData.scene_id];
             if (sceneData) {
                 const screen = core.screenManager.getByName(sceneData.name);
-                
+
                 if (screen) { screen.actorLayer.addChild(sprite); screen.taskIds.push(actorData.name); actor.__screen__ = screen; }
             }
-            sprite.on('pointertap', () => core.eventBus.emit(`actor:pointertap:${actor.name}`));
-            sprite.on('pointerdown', () => core.eventBus.emit(`actor:pointerdown:${actor.name}`));
+            const threshold = PPI.threshold;
+            sprite.on('pointertap', (e) => {
+                if (!ppiCheck(sprite, e, threshold)) return;
+                core.eventBus.emit(`actor:pointertap:${actor.name}`);
+            });
+            sprite.on('pointerdown', (e) => {
+                if (!ppiCheck(sprite, e, threshold)) return;
+                core.eventBus.emit(`actor:pointerdown:${actor.name}`);
+            });
             sprite.on('pointerup', () => core.eventBus.emit(`actor:pointerup:${actor.name}`));
             sprite.on('pointerupoutside', () => core.eventBus.emit(`actor:pointerup:${actor.name}`));
         }
     },
     install(core) {
+        PPI.renderer = core.app.renderer;
         core.actorManager._eventBus = core.eventBus;
         core.screenHook('__actors__', () => core.actorManager);
         core.globalHook('__actors__', () => core.actorManager);
