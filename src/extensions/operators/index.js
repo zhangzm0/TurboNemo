@@ -163,10 +163,12 @@ export default {
                 return `String(${c.compileValue(b, 'VALUE')}).charAt(${c.compileValue(b, 'INDEX')} - 1)`; 
             } 
         },
-        'text_split': { 
-            generator(c, b) { 
-                return `String(${c.compileValue(b, 'TEXT_TO_SPLIT')}).split(String(${c.compileValue(b, 'SPLIT_TEXT')})).map(e => isNaN(Number(e)) || e === '' ? e : Number(e))`; 
-            } 
+        'text_split': {
+            generator(c, b) {
+                const sepEl = b.querySelector(':scope > value[name="SPLIT_TEXT"]');
+                const sep = sepEl ? c.compileValue(b, 'SPLIT_TEXT') : "','";
+                return `String(${c.compileValue(b, 'TEXT_TO_SPLIT')}).split(String(${sep})).map(e => isNaN(Number(e)) || e === '' ? e : Number(e))`;
+            }
         },
         'mobile__text': { 
             generator(c, b) { 
