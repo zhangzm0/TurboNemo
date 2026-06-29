@@ -4,7 +4,7 @@ export const controlBlocks = {
         generator(c, b) {
             const t = c.compileValue(b, "time");
             return (
-                `    yield { _yieldType: "wait", frames: Math.round(${t} * 60) };\n` +
+                `    yield { _yieldType: "wait", frames: Math.ceil(${t} * 60) };\n` +
                 c.compileNext(b)
             );
         },

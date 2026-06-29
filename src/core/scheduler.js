@@ -102,7 +102,7 @@ class Scheduler {
             }
             const value = result.value;
             if (value?._yieldType === 'frame') { this._currentTaskId = null; continue; }
-            if (value?._yieldType === 'wait') { task.waitFrames = Math.max(1, value.frames); this._currentTaskId = null; continue; }
+            if (value?._yieldType === 'wait') { task.waitFrames = Math.max(0, value.frames); this._currentTaskId = null; continue; }
             if (value?._yieldType === 'pause') {
                 task.state = 'paused';
                 this._running = this._running.filter(t => t.taskId !== task.taskId);

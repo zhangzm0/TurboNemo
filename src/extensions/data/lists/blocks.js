@@ -84,40 +84,39 @@ export const listBlocks = {
     'lists_copy': {
         generator(c, b) {
             // TARGET 参数名是 "TARGET"，不是 "VAR"
+            // 优先检查用户拖入的 block，再回退到 shadow（与 compileListTarget 一致）
             const targetVarEl = b.querySelector(':scope > value[name="TARGET"]');
             let targetId = '';
             let targetExpr = '[]';
             if (targetVarEl) {
-                const targetField = targetVarEl.querySelector(':scope > shadow > field[name="VAR"]');
-                if (targetField) {
-                    targetId = targetField.textContent.trim();
-                    targetExpr = `self._vars['${targetId}']?.value`;
+                const targetBlock = targetVarEl.querySelector(':scope > block');
+                if (targetBlock) {
+                    targetExpr = c.compileValue(b, 'TARGET');
                 } else {
-                    const targetBlock = targetVarEl.querySelector(':scope > block');
-                    if (targetBlock) {
-                        targetExpr = c.compileValue(b, 'TARGET');
+                    const targetField = targetVarEl.querySelector(':scope > shadow > field[name="VAR"]');
+                    if (targetField) {
+                        targetId = targetField.textContent.trim();
+                        targetExpr = `self._vars['${targetId}']?.value`;
                     }
                 }
             }
 
-            // VALUE 参数
+            // VALUE 参数：优先检查用户拖入的 block（如 procedures_2_callreturn）
             const valEl = b.querySelector(':scope > value[name="VALUE"]');
-            let srcId = '';
             let srcExpr = '[]';
             if (valEl) {
-                const srcField = valEl.querySelector(':scope > shadow > field[name="VAR"]');
-                if (srcField) {
-                    srcId = srcField.textContent.trim();
-                    srcExpr = `self._vars['${srcId}']?.value`;
+                const srcBlock = valEl.querySelector(':scope > block');
+                if (srcBlock) {
+                    srcExpr = c.compileValue(b, 'VALUE');
                 } else {
-                    const srcBlock = valEl.querySelector(':scope > block');
-                    if (srcBlock) {
-                        srcExpr = c.compileValue(b, 'VALUE');
+                    const srcField = valEl.querySelector(':scope > shadow > field[name="VAR"]');
+                    if (srcField) {
+                        srcExpr = `self._vars['${srcField.textContent.trim()}']?.value`;
                     }
                 }
             }
 
-            return `    { const __src = ${srcExpr}; const __tgt = ${targetExpr}; if (Array.isArray(__src) && Array.isArray(__tgt)) { __tgt.length = 0; __tgt.push(...__src); ${emitUpdateCode(targetId)} } }\n` + c.compileNext(b);
+            return `    { const __src = ${srcExpr}; const __tgt = ${targetExpr}; if (Array.isArray(__src) && Array.isArray(__tgt)) { const __copy = [...__src]; __tgt.length = 0; __tgt.push(...__copy); ${emitUpdateCode(targetId)} } }\n` + c.compileNext(b);
         },
     },
     'lists_get_value': {

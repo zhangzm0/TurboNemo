@@ -69,7 +69,7 @@ export class Effects {
     constructor(sprite) {
         this._sprite = sprite;
         this._filters = {};
-        this._vals = { 0:0, 2:0, 3:0, 4:0, 5:0, 6:0 };
+        this._vals = { 0:0, 2:100, 3:0, 4:0, 5:0, 6:0 };
     }
 
     _filter(type) {
@@ -126,7 +126,7 @@ export class Effects {
         const v = this._vals[type] || 0;
         switch (type) {
             case '0': f.reset(); f.hue(v, false); break;
-            case '2': f.reset(); f.brightness((v + 100) / 100, false); break;
+            case '2': f.reset(); f.brightness(v / 100, false); break;
             case '6':
                 f.reset();
                 { const m = 1 + v / 100; const im = 1 - m;
@@ -147,9 +147,10 @@ export class Effects {
     cloneTo(targetEffects) {
         // copy alpha/ghost
         targetEffects._sprite.alpha = this._sprite.alpha;
-        // copy filter-based effects
+        // copy filter-based effects (skip default values)
         for (const [type, val] of Object.entries(this._vals)) {
-            if (val !== 0) targetEffects.set(type, val);
+            const def = type === '2' ? 100 : 0;
+            if (val !== def) targetEffects.set(type, val);
         }
     }
 
@@ -157,6 +158,6 @@ export class Effects {
         this._sprite.alpha = 1;
         this._sprite.filters = null;
         this._filters = {};
-        this._vals = { 0:0, 2:0, 3:0, 4:0, 5:0, 6:0 };
+        this._vals = { 0:0, 2:100, 3:0, 4:0, 5:0, 6:0 };
     }
 }

@@ -1,8 +1,11 @@
 // ==================== extensions/looks/dialog/ask.js ====================
-import { createPanel, createDialogContainer } from './panel.js';
+import { createPanel, createDialogContainer } from "./panel.js";
 
-const CONFIRM_BG = new URL('res/ask_dialog_confirm.png', import.meta.url).href;
-const CONFIRM_ACTIVE_BG = new URL('res/ask_dialog_confirm2.png', import.meta.url).href;
+const CONFIRM_BG = new URL("res/ask_dialog_confirm.png", import.meta.url).href;
+const CONFIRM_ACTIVE_BG = new URL(
+    "res/ask_dialog_confirm2.png",
+    import.meta.url,
+).href;
 
 function truncate(str, max) {
     if (!str) return "";
@@ -21,20 +24,27 @@ function getAvatarUrl(actor) {
 }
 
 export const askBlocks = {
-    'self_ask': {
+    self_ask: {
         generator(c, b) {
             const text = c.compileValue(b, "text");
-            return `    __global__.__askDialog__.show(self, ${text});\n    self._answer = (yield { _yieldType: "pause", event: "ask:answered" });\n` + c.compileNext(b);
+            return (
+                `    __global__.__askDialog__.show(self, ${text});\n    self._answer = (yield { _yieldType: "pause", event: "ask:answered" });\n` +
+                c.compileNext(b)
+            );
         },
     },
-    'get_answer': {
-        generator(c, b) { return `(self._answer ?? '')`; },
+    get_answer: {
+        generator(c, b) {
+            return `(self._answer ?? '')`;
+        },
     },
 };
 
 export function installAsk(core) {
     const container = createDialogContainer(core);
-    const { mask, panel, show, hide } = createPanel(container, { showBottomDecor: true });
+    const { mask, panel, show, hide } = createPanel(container, {
+        showBottomDecor: true,
+    });
 
     const questionArea = document.createElement("div");
     questionArea.style.cssText = "display:flex;";
@@ -53,7 +63,8 @@ export function installAsk(core) {
     questionArea.appendChild(speech);
 
     const actorNameEl = document.createElement("div");
-    actorNameEl.style.cssText = "white-space:nowrap; color:#a19c97; font-size:21px;";
+    actorNameEl.style.cssText =
+        "white-space:nowrap; color:#a19c97; font-size:21px;";
     speech.appendChild(actorNameEl);
 
     const questionText = document.createElement("div");
@@ -86,18 +97,29 @@ export function installAsk(core) {
     panel.appendChild(confirmBtn);
 
     function confirm() {
-        if (input.style.display === 'none') return;
+        if (input.style.display === "none") return;
         const value = input.value.trim();
-        if (!value) return;
+        if (!value) return; // 空输入直接忽略
+
+        // 尝试转换为数字
+        const parsed = Number(value);
+        const finalValue = !isNaN(parsed) ? parsed : value;
+
         input.value = "";
         hide();
-        core.eventBus.emit("ask:answered", value);
+        core.eventBus.emit("ask:answered", finalValue);
     }
 
-    confirmBtn.addEventListener("mousedown", () => { confirmBtn.style.backgroundImage = `url(${CONFIRM_ACTIVE_BG})`; });
-    confirmBtn.addEventListener("mouseup", () => { confirmBtn.style.backgroundImage = `url(${CONFIRM_BG})`; });
+    confirmBtn.addEventListener("mousedown", () => {
+        confirmBtn.style.backgroundImage = `url(${CONFIRM_ACTIVE_BG})`;
+    });
+    confirmBtn.addEventListener("mouseup", () => {
+        confirmBtn.style.backgroundImage = `url(${CONFIRM_BG})`;
+    });
     confirmBtn.addEventListener("click", confirm);
-    input.addEventListener("keydown", (e) => { if (e.key === "Enter") confirm(); });
+    input.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") confirm();
+    });
     mask.addEventListener("click", confirm);
 
     function showAsk(actor, question) {
@@ -108,7 +130,9 @@ export function installAsk(core) {
         input.value = "";
         input.style.display = "";
         confirmBtn.style.display = "";
-        panel.querySelectorAll('.ask-choice-container').forEach(el => el.remove());
+        panel
+            .querySelectorAll(".ask-choice-container")
+            .forEach((el) => el.remove());
         show();
         setTimeout(() => input.focus(), 200);
     }

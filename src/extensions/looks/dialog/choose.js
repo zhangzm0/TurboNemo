@@ -31,7 +31,8 @@ export const chooseBlocks = {
             const choices = [];
             for (let i = 0; i < 4; i++) {
                 const val = c.compileValue(b, `CHOICE${i}`);
-                if (val !== '0' || b.querySelector(`value[name="CHOICE${i}"]`)) {
+                // 仅当有用户拖入的 block（非 shadow）或值不为默认 0 时才加入选项
+                if (b.querySelector(`value[name="CHOICE${i}"] > block`) || val !== '0') {
                     choices.push(val);
                 }
             }
