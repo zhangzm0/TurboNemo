@@ -17,12 +17,16 @@ export const sensingBlocks = {
             const lookup = target === '__self'
                 ? 'self.name'
                 : `(__actors__._idToName?.['${target}'] || '${target}')`;
-            if (attr == '0') return `(__actors__.getByName(${lookup})?.sprite?.x ?? 0)`;
-            if (attr == '1') return `(-(__actors__.getByName(${lookup})?.sprite?.y ?? 0))`;
-            if (attr == '2') return `(__actors__.getByName(${lookup})?.currentCostume ?? 0)`;
-            if (attr == '3') return `(-(__actors__.getByName(${lookup})?.sprite?.rotation ?? 0) * 180 / Math.PI)`;
-            if (attr == '4') return `((__actors__.getByName(${lookup})?.sprite?.scale?.x ?? 1) * 100)`;
-            if (attr == '5') return `((__actors__.getByName(${lookup})?.sprite?.scale?.x ?? 1) * 100)`;
+            const actorExpr = `__actors__.getByName(${lookup})`;
+            const bgExpr = `__screens__.getByName(${lookup})?.bg`;
+            // Round to 2 decimal places, matching official get_fixed_number(num, 2)
+            const R = (v) => `Math.round((${v}) * 100) / 100`;
+            if (attr == '0') return R(`${actorExpr}?.sprite?.x ?? ${bgExpr}?.sprite?.tilePosition?.x ?? 0`);
+            if (attr == '1') return R(`-(${actorExpr}?.sprite?.y ?? ${bgExpr}?.sprite?.tilePosition?.y ?? 0)`);
+            if (attr == '2') return R(`${actorExpr}?.currentCostume ?? ${bgExpr}?.currentCostume ?? 0`);
+            if (attr == '3') return R(`-(${actorExpr}?.sprite?.rotation ?? ${bgExpr}?.sprite?.rotation ?? 0) * 180 / Math.PI`);
+            if (attr == '4') return R(`(${actorExpr}?.sprite?.scale?.x ?? ${bgExpr}?.sprite?.scale?.x ?? 1) * 100`);
+            if (attr == '5') return R(`(${actorExpr}?.sprite?.scale?.x ?? ${bgExpr}?.sprite?.scale?.x ?? 1) * 100`);
             return '0';
         },
     },
@@ -85,15 +89,17 @@ export const sensingBlocks = {
             }
             if (rawB === '__mouse') {
                 if (isCampA) {
-                    return `(function(){ var __list = ${campCheckA}; var __m = __global__.__mouse__; var __mx = __screens__.width/2 + __m.x; var __my = __screens__.height/2 - __m.y; for(var __i=0;__i<__list.length;__i++){ var __a=__list[__i]; if(!__a?.sprite) continue; var __b = __a.sprite.getBounds(); if(__mx>=__b.x&&__mx<=__b.x+__b.width&&__my>=__b.y&&__my<=__b.y+__b.height) return true; } return false; })()`;
+                    return `(function(){ var __list=${campCheckA};var __m=__global__.__mouse__;var __mx=__screens__.width/2+__m.x;var __my=__screens__.height/2-__m.y;for(var __i=0;__i<__list.length;__i++){var __a=__list[__i];if(!__a?.sprite)continue;var __local=__a.sprite.toLocal({x:__mx,y:__my});if(__a.sprite.hitArea&&__a.sprite.hitArea.contains(__local.x,__local.y))return true;if(!__a.sprite.hitArea){var __b=__a.sprite.getBounds();if(__mx>=__b.x&&__mx<=__b.x+__b.width&&__my>=__b.y&&__my<=__b.y+__b.height)return true;}}return false;})()`;
                 }
                 return `(function(){
     var __a = ${getActor(rawA)};
     if(!__a?.sprite) return false;
     var __m = __global__.__mouse__;
-    var __b = __a.sprite.getBounds();
     var __mx = __screens__.width/2 + __m.x;
     var __my = __screens__.height/2 - __m.y;
+    var __local = __a.sprite.toLocal({x: __mx, y: __my});
+    if(__a.sprite.hitArea) return __a.sprite.hitArea.contains(__local.x, __local.y);
+    var __b = __a.sprite.getBounds();
     return __mx >= __b.x && __mx <= __b.x+__b.width && __my >= __b.y && __my <= __b.y+__b.height;
 })()`;
             }
