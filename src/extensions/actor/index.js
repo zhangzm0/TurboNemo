@@ -1,4 +1,6 @@
 // src/extensions/actor/index.js
+import { getPixelHitArea } from '../../core/hitarea.js';
+
 export default {
     name: 'actor',
     version: '1.0.0',
@@ -19,6 +21,8 @@ export default {
             sprite.visible = actorData.visible !== false;
             sprite.interactive = true;
             sprite.buttonMode = true;
+            const hitArea = getPixelHitArea(tex);
+            if (hitArea) sprite.hitArea = hitArea;
             const actor = core.actorManager.createActor(actorData.name, sprite);
             for (const sid of (actorData.styles || [])) {
                 const tex2 = core.assetLoader.getTexture(sid);

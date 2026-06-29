@@ -1,5 +1,6 @@
 // src/core/actor-manager.js
 import { Actor } from './actor.js';
+import { getPixelHitArea } from './hitarea.js';
 
 class ActorManager {
     constructor() {
@@ -49,6 +50,8 @@ class ActorManager {
         newSprite.alpha = proto.sprite.alpha;
         newSprite.interactive = true;
         newSprite.buttonMode = true;
+        const hitArea = getPixelHitArea(proto.sprite.texture);
+        if (hitArea) newSprite.hitArea = hitArea;
 
         newSprite.on('pointertap', () => this._eventBus?.emit(`actor:pointertap:${cloneName}`));
         newSprite.on('pointerdown', () => this._eventBus?.emit(`actor:pointerdown:${cloneName}`));
