@@ -95,6 +95,12 @@ class NemoPlayer {
 
         this.globalHook("__mouse__", () => this._mouse);
 
+        // Fixed timestep 16.67ms (60 FPS)
+        this._TICK_MS = 1000 / 60;
+        this._accumulator = 0;
+        this._lastTickTime = performance.now();
+        this._maxAccumulator = this._TICK_MS * 5; // 防止螺旋死亡
+
         this._fps = 0;
         this._frameCount = 0;
         this._lastTime = performance.now();
@@ -102,9 +108,6 @@ class NemoPlayer {
         window.addEventListener("resize", resize);
         resize();
         this.app.ticker.add(() => this._tick());
-        this.app.ticker.add(() => {
-            this._mouse.click = false;
-        });
         this._YIELD_FRAME = { _yieldType: "frame" };
     }
 
@@ -292,9 +295,25 @@ class NemoPlayer {
     }
 
     _tick() {
-        this.scheduler.tick();
-        this._frameCount++;
         const now = performance.now();
+        let elapsed = now - this._lastTickTime;
+        this._lastTickTime = now;
+
+        // 防止长时间挂起后（tab切回）一次性追赶太多帧
+        if (elapsed > this._maxAccumulator) {
+            elapsed = this._maxAccumulator;
+        }
+
+        this._accumulator += elapsed;
+
+        // 以固定 16.67ms 步长推进模拟，直到追平累积时间
+        while (this._accumulator >= this._TICK_MS) {
+            this.scheduler.tick();
+            this._accumulator -= this._TICK_MS;
+            this._frameCount++;
+        }
+
+        // FPS 统计
         if (now - this._lastTime >= 1000) {
             this._fps = Math.round(
                 this._frameCount / ((now - this._lastTime) / 1000),
@@ -302,6 +321,9 @@ class NemoPlayer {
             this._frameCount = 0;
             this._lastTime = now;
         }
+
+        // 每显示帧清除一次点击状态（与模拟 tick 次数无关）
+        this._mouse.click = false;
     }
 }
 
