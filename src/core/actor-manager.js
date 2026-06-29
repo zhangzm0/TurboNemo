@@ -1,6 +1,5 @@
 // src/core/actor-manager.js
 import { Actor } from './actor.js';
-import { getPixelHitArea } from './hitarea.js';
 
 class ActorManager {
     constructor() {
@@ -13,6 +12,7 @@ class ActorManager {
 
     createActor(name, sprite) {
         const actor = new Actor(sprite, name);
+        actor._eventBus = this._eventBus;
         this.list.push(actor);
         this._byName[name] = actor;
         for (const [hookName, factory] of Object.entries(this._selfHooks || {})) {
@@ -50,8 +50,6 @@ class ActorManager {
         newSprite.alpha = proto.sprite.alpha;
         newSprite.interactive = true;
         newSprite.buttonMode = true;
-        const hitArea = getPixelHitArea(proto.sprite.texture);
-        if (hitArea) newSprite.hitArea = hitArea;
 
         newSprite.on('pointertap', () => this._eventBus?.emit(`actor:pointertap:${cloneName}`));
         newSprite.on('pointerdown', () => this._eventBus?.emit(`actor:pointerdown:${cloneName}`));
@@ -59,6 +57,7 @@ class ActorManager {
         newSprite.on('pointerupoutside', () => this._eventBus?.emit(`actor:pointerup:${cloneName}`));
 
         const clone = new Actor(newSprite, cloneName);
+        clone._eventBus = this._eventBus;
         clone.isClone = true;
         clone._protoName = protoName;
         clone.costumes = { ...proto.costumes };

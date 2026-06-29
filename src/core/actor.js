@@ -1,6 +1,4 @@
 // src/core/actor.js
-import { getPixelHitArea } from './hitarea.js';
-
 class Actor {
     constructor(sprite, name) {
         this.sprite = sprite;
@@ -11,6 +9,7 @@ class Actor {
         this.currentCostume = 0;
         this._costumeKeys = null;
         this._costumeCount = 0;
+        this._eventBus = null;
     }
 
     setCostume(index) {
@@ -23,8 +22,7 @@ class Actor {
         if (!id) return;
         const data = this.costumes[id];
         this.sprite.texture = data.texture;
-        const hitArea = getPixelHitArea(data.texture);
-        this.sprite.hitArea = hitArea || null;
+        this._eventBus?.emit('actor:costume-changed', { actor: this });
         // Actor.setCostume
         if (data.cp.x !== this.sprite.pivot.x || data.cp.y !== this.sprite.pivot.y) {
             this.sprite.pivot.set(data.cp.x, data.cp.y);

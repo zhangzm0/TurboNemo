@@ -8,6 +8,13 @@ export default {
     init(core, data) {
         const bcm = core.assetLoader.bcm;
         core.actorManager._idToName = {};
+
+        // Listen for costume changes → update hitArea
+        core.eventBus.on('actor:costume-changed', ({ actor }) => {
+            const ha = getPixelHitArea(actor.sprite.texture);
+            actor.sprite.hitArea = ha || null;
+        });
+
         for (const [actorId, actorData] of Object.entries(data.actors || {})) {
             core.actorManager._idToName[actorId] = actorData.name;
             const styleId = actorData.current_style_id;
