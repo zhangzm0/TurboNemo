@@ -139,7 +139,9 @@ export const sensingBlocks = {
     'check_sence': {
         generator(c, b) {
             const idx = c.compileValue(b, 'index');
-            return `__screens__.getCurrent()?.name !== __screens__.list[${idx}-1]?.name`;
+            const options = c.extractParams(b).options;
+            const eqCheck = `__screens__.getCurrent()?.name === __screens__.list[${idx}-1]?.name`;
+            return options === 'true' ? eqCheck : `!(${eqCheck})`;
         },
     },
     'get_time': {

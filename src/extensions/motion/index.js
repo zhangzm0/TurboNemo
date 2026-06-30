@@ -50,6 +50,32 @@ export default {
 ` + c.compileNext(b);
             },
         },
+        'self_rotate_around': {
+            generator(c, b) {
+                const target = c.extractParams(b).sprite || '__self';
+                const degrees = c.compileValue(b, 'degrees');
+                if (target === '__self') {
+                    return `    self.sprite.rotation -= ${degrees} * Math.PI / 180;\n` + c.compileNext(b);
+                }
+                const lookup = `(__actors__._idToName?.['${target}'] || '${target}')`;
+                const rad = `${degrees} * Math.PI / 180`;
+                return `\
+    { const __t = __actors__.getByName(${lookup});
+    if (__t) {
+        const __dx = self.sprite.x - __t.sprite.x;
+        const __dy = self.sprite.y - __t.sprite.y;
+        const __cos = Math.cos(${rad});
+        const __sin = Math.sin(${rad});
+        const __nx = __dx * __cos - __dy * __sin;
+        const __ny = __dx * __sin + __dy * __cos;
+        self.sprite.x = __t.sprite.x + __nx;
+        self.sprite.y = __t.sprite.y + __ny;
+        self.sprite.rotation -= ${rad};
+        __core__.eventBus.emit('actor:moved:' + self.name, self);
+    } }
+` + c.compileNext(b);
+            },
+        },
         'self_face_to': {
             generator(c, b) {
                 const target = c.extractParams(b).sprite || '__mouse';
