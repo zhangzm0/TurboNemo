@@ -119,5 +119,24 @@ await Promise.race([
 loadingEl.style.opacity = '0';
 setTimeout(() => loadingEl.remove(), 300);
 
+// 显示开始按钮
+const overlay = document.getElementById('startOverlay');
+const restartBtn = document.getElementById('restartBtn');
+overlay.classList.remove('hidden');
+overlay.addEventListener('click', () => {
+    overlay.classList.add('hidden');
+    restartBtn.style.display = 'flex';
+    core.start();
+});
+
+// 重启
+restartBtn.addEventListener('click', () => {
+    restartBtn.style.display = 'none';
+    overlay.classList.remove('hidden');
+    core.restart();
+    // 重新挂载 click 一次（restart 后需要再次 start）
+    // 但 overlay 的 click 回调已经绑定，再次点击就会 start
+});
+
 console.log('✅ 就绪');
 window.core = core;

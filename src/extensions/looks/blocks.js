@@ -57,10 +57,16 @@ export const looksBlocks = {
         },
     },
     'self_dialog': {
-        generator(c, b) { return c.compileNext(b) || ''; },
+        generator(c, b) {
+            const text = c.compileValue(b, 'text');
+            return `    __global__.__printDialog__.show(self.name, ${text}).next();\n` + c.compileNext(b);
+        },
     },
     'self_dialog_wait': {
-        generator(c, b) { return c.compileNext(b) || ''; },
+        generator(c, b) {
+            const text = c.compileValue(b, 'text');
+            return `    yield* __global__.__printDialog__.show(self.name, ${text});\n` + c.compileNext(b);
+        },
     },
     'show_stage_dialog': {
         generator(c, b) { return c.compileNext(b) || ''; },
@@ -88,9 +94,13 @@ export const looksBlocks = {
         generator(c, b) { return c.compileNext(b) || ''; },
     },
     'self_gradually_appear': {
-        generator(c, b) { return c.compileNext(b) || ''; },
+        generator(c, b) {
+            return `    self.sprite.visible = true;\n    yield* self.__fadeTo(1, 0.3);\n` + c.compileNext(b);
+        },
     },
     'self_gradually_disappear': {
-        generator(c, b) { return c.compileNext(b) || ''; },
+        generator(c, b) {
+            return `    yield* self.__fadeTo(0, 0.3);\n    self.sprite.visible = false;\n` + c.compileNext(b);
+        },
     },
 };

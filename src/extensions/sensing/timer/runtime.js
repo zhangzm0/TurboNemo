@@ -64,7 +64,6 @@ export function installTimer(core) {
     core.stage.globalHtmlLayer.appendChild(el);
     timerApi._el = el;
 
-    // sensing/timer/runtime.js - ticker 更新部分
     core.app.ticker.add(() => {
         const val = timerApi.getValue();
         const sec = Math.floor(val);

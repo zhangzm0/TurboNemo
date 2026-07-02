@@ -13,7 +13,6 @@ export default {
                 const body = c.compileStatement(b, 'STACK');
                 if (!body) return `    // procedure ${name} (empty)\n`;
                 const escapedName = name.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
-                // 全局函数用固定 key 注册
                 return `    __core__._procFns['__global__proc__:${escapedName}'] = function*(self, __screen__, __actors__, __screens__, __global__, __core__, __params) {\n${body}    };\n    return;\n`;
             },
         },
@@ -29,9 +28,13 @@ export default {
                         args.push(c.compileValue(b, `ARG${i}`));
                     });
                 }
-                const argObj = '{' + pNames.map((p, i) => `'${p.replace(/'/g, "\\'")}': ${args[i]}`).join(', ') + '}';
-                // 用固定 key 查找全局函数
-                return `    { const __fn = __core__._procFns['__global__proc__:${name}']; if (__fn) yield* __fn(self, __screen__, __actors__, __screens__, __global__, __core__, ${argObj}); }\n` + c.compileNext(b);
+                let hoisted = '', argProps = '';
+                args.forEach((a, i) => {
+                    hoisted += `    var __a${i} = (${a});\n`;
+                    argProps += `'${pNames[i].replace(/'/g, "\\'")}': __a${i}, `;
+                });
+                const argObj = '{' + argProps.replace(/, $/, '') + '}';
+                return `${hoisted}    { const __fn = __core__._procFns['__global__proc__:${name}']; if (__fn) yield {_yieldType:'call', genFactory:function(){return __fn(self, __screen__, __actors__, __screens__, __global__, __core__, ${argObj});}}; }\n` + c.compileNext(b);
             },
         },
         'procedures_2_callreturn': {
@@ -46,9 +49,12 @@ export default {
                         args.push(c.compileValue(b, `ARG${i}`));
                     });
                 }
-                const argObj = '{' + pNames.map((p, i) => `'${p.replace(/'/g, "\\'")}': ${args[i]}`).join(', ') + '}';
-                // 通过 yield* 委托到过程体，确保过程中的 yield 能被调度器正确处理
-                return `yield* __core__._callProcGenerator('__global__proc__:${name}', self, __screen__, __actors__, __screens__, __global__, __core__, ${argObj})`;
+                let argProps = '';
+                args.forEach((a, i) => {
+                    argProps += `'${pNames[i].replace(/'/g, "\\'")}': ${a}, `;
+                });
+                const argObj = '{' + argProps.replace(/, $/, '') + '}';
+                return `(yield {_yieldType:'call', genFactory: function*() { return __core__._callProcGen('__global__proc__:${name}', self, __screen__, __actors__, __screens__, __global__, __core__, ${argObj}); }})`;
             },
         },
         'procedures_2_parameter': {
@@ -64,10 +70,10 @@ export default {
     },
     install(core) {
         core._procFns = {};
-        core._callProcGenerator = function*(name, self, screen, actors, screens, globalObj, coreRef, paramsObj) {
+        core._callProcGen = function(name, self, screen, actors, screens, globalObj, coreRef, paramsObj) {
             const factory = coreRef._procFns?.[name];
-            if (!factory) return undefined;
-            return yield* factory(self, screen, actors, screens, globalObj, coreRef, paramsObj);
+            if (!factory) return null;
+            return factory(self, screen, actors, screens, globalObj, coreRef, paramsObj);
         };
 
         // 直接从已加载的 bcm 注册过程

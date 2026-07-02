@@ -211,7 +211,10 @@ class NemoPlayer {
                     blockTree: script.blockTree,
                 };
                 this.scheduler.createTask(taskId, actorData.name, restartInfo);
-                this.scheduler.startTask(taskId, gen, actorData.name);
+                const t = this.scheduler._all[taskId];
+                t.gen = gen;
+                t._genStack = [gen];
+                t.entityName = actorData.name;
             });
         }
 
@@ -251,40 +254,110 @@ class NemoPlayer {
                     blockTree: script.blockTree,
                 };
                 this.scheduler.createTask(taskId, sceneData.name, restartInfo);
-                this.scheduler.startTask(taskId, gen, sceneData.name);
+                const t = this.scheduler._all[taskId];
+                t.gen = gen;
+                t._genStack = [gen];
+                t.entityName = sceneData.name;
             });
         }
     }
 
     restart() {
-        this.scheduler.stopAll();
-        this._mouse.down = false;
-        this._mouse.click = false;
+        // 保留：app（PIXI Application）、assetLoader（已加载的纹理）、_bcm、_extensions
+        const app = this.app;
+        const loader = this.assetLoader;
+        const bcm = this._bcm;
+        const extensions = this._extensions;
+        const registry = this.registry;
+        const compiler = this.compiler;
 
-        const globalObj = {};
-        for (const [name, factory] of Object.entries(this._globalHooks))
-            globalObj[name] = factory();
+        // 清空舞台上的屏幕容器
+        this.stage.screensContainer.removeChildren()
+            .forEach(c => c.destroy({ children: true, texture: false }));
+        while (this.stage.screensHtmlContainer.firstChild)
+            this.stage.screensHtmlContainer.removeChild(this.stage.screensHtmlContainer.firstChild);
+        while (this.stage.globalHtmlLayer.firstChild)
+            this.stage.globalHtmlLayer.removeChild(this.stage.globalHtmlLayer.firstChild);
 
-        for (const task of Object.values(this.scheduler._all)) {
-            if (task.state === 'stopped' && task._restart) {
-                const info = task._restart;
-                const self = this.actorManager.getByName(info.entityName)
-                    || this.screenManager.getByName(info.entityName)?.bg;
-                if (!self) continue;
-                const screen = this.screenManager.list.find(s =>
-                    s.name === info.entityName || s.taskIds?.includes(info.entityName)
-                );
-                if (!screen) continue;
-                const gen = info.factory(self, screen, this.actorManager, this.screenManager, globalObj, this);
-                this.scheduler.startTask(task.taskId, gen, info.entityName);
+        // 重建核心组件
+        this.eventBus = new EventBus();
+        this.scheduler = new Scheduler(this.eventBus);
+        this.screenManager = new ScreenManager(this.stage);
+        this.actorManager = new ActorManager();
+
+        this._globalHooks = {};
+        this._screenHooks = {};
+        this._selfHooks = {};
+
+        this.actorManager._selfHooks = this._selfHooks;
+        this.screenManager._selfHooks = this._selfHooks;
+        this.screenManager._screenHooks = this._screenHooks;
+        this.actorManager._eventBus = this.eventBus;
+
+        // 确保 loader 指向新 eventBus（后续不会再加载，但保持一致性）
+        loader._eventBus = this.eventBus;
+
+        // 重置鼠标状态（DOM 监听器在 app.view 上永久存在，只重置数据）
+        this._mouse = { x: 0, y: 0, down: false, click: false };
+        this._swipe = { startX: 0, startY: 0, tracking: false };
+        this.globalHook("__mouse__", () => this._mouse);
+
+        // 清空 app.ticker（扩展注册的 ticker 回调随 restart 废弃）
+        let t = this.app.ticker._head;
+        while (t) { const n = t.next; this.app.ticker.remove(t.fn); t = n; }
+        this.app.ticker.add(() => this._tick());
+
+        // 恢复舞台尺寸
+        this.width = loader.designW || 562;
+        this.height = loader.designH || 900;
+        this.stage.resize(this.width, this.height);
+
+        // 重新注册所有扩展
+        for (const ext of extensions) {
+            if (ext.init) {
+                const data = {};
+                if (ext.initData) {
+                    for (const [key, path] of Object.entries(ext.initData)) {
+                        data[key] = path.split('.').reduce((o, k) => o?.[k], bcm);
+                    }
+                }
+                ext.init(this, data);
             }
+            if (ext.install) ext.install(this);
         }
+
+        // 重挂 selfHooks 到新角色/背景
+        for (const [name, factory] of Object.entries(this._selfHooks)) {
+            for (const a of this.actorManager.list)
+                if (!a[name]) a[name] = factory(a);
+            for (const s of this.screenManager.list)
+                if (s.bg && !s.bg[name]) s.bg[name] = factory(s.bg);
+        }
+
+        // 重新编译脚本
+        this._compileAll(bcm);
     }
 
     start() {
         for (const t of Object.values(this.scheduler._all)) {
-            if (t.state === "pending" && t.gen)
+            if (t.state === "pending" && t.gen) {
+                t._genStack = [t.gen];
                 this.scheduler.startTask(t.taskId, t.gen, t.entityName);
+            }
+        }
+        // 在下一帧发出 screen:activated（等所有 task 先跑一个 tick 注册 pause listener）
+        const firstScreen = this.screenManager.getCurrent();
+        if (firstScreen) {
+            const activate = () => {
+                this.eventBus.emit(`screen:activated:${firstScreen.name}`);
+                if (firstScreen.taskIds) {
+                    for (const actorName of firstScreen.taskIds) {
+                        this.eventBus.emit(`screen:activated:${actorName}`);
+                    }
+                }
+                this.app.ticker.remove(activate);
+            };
+            this.app.ticker.add(activate);
         }
     }
     stop() {

@@ -8,6 +8,22 @@ class ActorManager {
         this._clones = {};
         this._selfHooks = {};
         this.MAX_CLONES = 300;
+        this._spritePool = [];
+    }
+
+    _recycleSprite(sprite) {
+        if (sprite.parent) sprite.parent.removeChild(sprite);
+        sprite.removeAllListeners();
+        this._spritePool.push(sprite);
+    }
+
+    _acquireSprite(texture) {
+        if (this._spritePool.length > 0) {
+            const sprite = this._spritePool.pop();
+            sprite.texture = texture;
+            return sprite;
+        }
+        return new PIXI.Sprite(texture);
     }
 
     createActor(name, sprite) {
@@ -40,7 +56,7 @@ class ActorManager {
         }
 
         const cloneName = newName || `${protoName}_clone_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
-        const newSprite = new PIXI.Sprite(proto.sprite.texture);
+        const newSprite = this._acquireSprite(proto.sprite.texture);
         newSprite.anchor.set(0.5, 0.5);
         newSprite.x = proto.sprite.x;
         newSprite.y = proto.sprite.y;
@@ -108,7 +124,7 @@ class ActorManager {
             if (this._stopCloneTasks) {
                 this._stopCloneTasks(cloneName);
             }
-            this._byName[cloneName].sprite.destroy({ children: false, texture: false, baseTexture: false });
+            this._recycleSprite(this._byName[cloneName].sprite);
             delete this._byName[cloneName];
             this.list = this.list.filter(a => a.name !== cloneName);
         }

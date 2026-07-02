@@ -7,6 +7,8 @@ export default {
     initData: { broadcasts: 'broadcast.broadcast_dict' },
     init(core, data) {
         this._broadcasts = data.broadcasts || {};
+        // restart 时清除广播等待计数
+        for (const k of Object.keys(_bwCounts)) delete _bwCounts[k];
     },
     blocks: {
         'self_listen': {
