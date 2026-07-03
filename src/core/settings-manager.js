@@ -83,6 +83,8 @@ class SettingsManager {
         this._defs.set(def.id, def);
         if (def.categoryLabel) CATEGORY_LABELS[def.category] = def.categoryLabel;
         if (def.groupLabel) GROUP_LABELS[def.group] = def.groupLabel;
+        // 立即应用新注册的设置
+        if (def.apply) def.apply(this.get(def.id), this.core);
     }
 
     get(id) {

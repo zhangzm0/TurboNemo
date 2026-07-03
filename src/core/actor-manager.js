@@ -78,7 +78,13 @@ class ActorManager {
         newSprite.interactive = true;
         newSprite.buttonMode = true;
 
-        newSprite.on('pointertap', () => this._eventBus?.emit(`actor:pointertap:${cloneName}`));
+        let tapGuard = false;
+        newSprite.on('pointertap', () => {
+            if (tapGuard) return;
+            tapGuard = true;
+            requestAnimationFrame(() => { tapGuard = false; });
+            this._eventBus?.emit(`actor:pointertap:${cloneName}`);
+        });
         newSprite.on('pointerdown', () => this._eventBus?.emit(`actor:pointerdown:${cloneName}`));
         newSprite.on('pointerup', () => this._eventBus?.emit(`actor:pointerup:${cloneName}`));
         newSprite.on('pointerupoutside', () => this._eventBus?.emit(`actor:pointerup:${cloneName}`));

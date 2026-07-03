@@ -46,7 +46,13 @@ export default {
                 screen.actorLayer.addChild(sprite);
                 screen.taskIds.push(actorData.name);
                 actor.__screen__ = screen;
-                sprite.on('pointertap', () => core.eventBus.emit(`actor:pointertap:${actor.name}`, { screen, target: actor.name }));
+                let tapGuard = false;
+                sprite.on('pointertap', () => {
+                    if (tapGuard) return;
+                    tapGuard = true;
+                    requestAnimationFrame(() => { tapGuard = false; });
+                    core.eventBus.emit(`actor:pointertap:${actor.name}`, { screen, target: actor.name });
+                });
                 sprite.on('pointerdown', () => core.eventBus.emit(`actor:pointerdown:${actor.name}`, { screen, target: actor.name }));
                 sprite.on('pointerup', () => core.eventBus.emit(`actor:pointerup:${actor.name}`, { screen, target: actor.name }));
                 sprite.on('pointerupoutside', () => core.eventBus.emit(`actor:pointerup:${actor.name}`, { screen, target: actor.name }));

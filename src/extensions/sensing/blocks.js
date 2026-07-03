@@ -89,12 +89,13 @@ export const sensingBlocks = {
             }
             if (rawB === '__mouse') {
                 if (isCampA) {
-                    return `(function(){ var __list=${campCheckA};var __m=__global__.__mouse__;var __mx=__screens__.width/2+__m.x;var __my=__screens__.height/2-__m.y;for(var __i=0;__i<__list.length;__i++){var __a=__list[__i];if(!__a?.sprite)continue;var __local=__a.sprite.toLocal({x:__mx,y:__my});if(__a.sprite.hitArea&&__a.sprite.hitArea.contains(__local.x,__local.y))return true;if(!__a.sprite.hitArea){var __b=__a.sprite.getBounds();if(__mx>=__b.x&&__mx<=__b.x+__b.width&&__my>=__b.y&&__my<=__b.y+__b.height)return true;}}return false;})()`;
+                    return `(function(){ var __list=${campCheckA};var __m=__global__.__mouse__;if(!__m.down)return false;var __mx=__screens__.width/2+__m.x;var __my=__screens__.height/2-__m.y;for(var __i=0;__i<__list.length;__i++){var __a=__list[__i];if(!__a?.sprite)continue;var __local=__a.sprite.toLocal({x:__mx,y:__my});if(__a.sprite.hitArea&&__a.sprite.hitArea.contains(__local.x,__local.y))return true;if(!__a.sprite.hitArea){var __b=__a.sprite.getBounds();if(__mx>=__b.x&&__mx<=__b.x+__b.width&&__my>=__b.y&&__my<=__b.y+__b.height)return true;}}return false;})()`;
                 }
                 return `(function(){
     var __a = ${getActor(rawA)};
     if(!__a?.sprite) return false;
     var __m = __global__.__mouse__;
+    if(!__m.down) return false;
     var __mx = __screens__.width/2 + __m.x;
     var __my = __screens__.height/2 - __m.y;
     var __local = __a.sprite.toLocal({x: __mx, y: __my});

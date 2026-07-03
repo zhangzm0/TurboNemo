@@ -238,15 +238,21 @@ class Brush {
         this.filling = false;
         this.onDirty();
     }
-    stamp(text, size, x, y) {
+    stamp(text, size, align) {
         const ctx = this.ctx;
+        const sprite = this.actor.sprite;
+        if (!sprite) return;
+        const pos = sprite.getGlobalPosition();
+        const rotation = sprite.rotation;
         ctx.save();
         ctx.font = `bold ${clamp(size || 24, 1, 10000)}px Arial, Microsoft YaHei`;
-        ctx.fillStyle = `rgb(${this._r},${this._g},${this._b})`;
+        ctx.fillStyle = `#${this.color}`;
         ctx.globalAlpha = this.alpha;
         ctx.textBaseline = "middle";
-        ctx.textAlign = "center";
-        ctx.fillText(String(text), this.toCanvasX(x), this.toCanvasY(y));
+        ctx.textAlign = align === "LEFT" ? "right" : align === "RIGHT" ? "left" : "center";
+        ctx.translate(pos.x, pos.y);
+        ctx.rotate(rotation);
+        ctx.fillText(String(text), 0, 0);
         ctx.restore();
         this.onDirty();
     }
@@ -400,8 +406,9 @@ export default {
                 if (isScreen(c)) return c.compileNext(b) || "";
                 const text = c.compileValue(b, "TEXT") || "''";
                 const size = c.compileValue(b, "SIZE") || "24";
+                const align = b.querySelector('field[name="ALIGN"]')?.textContent.trim() || 'CENTER';
                 return (
-                    `    self._brush.stamp(${text}, ${size}, self.sprite.x, self.sprite.y);\n` +
+                    `    self._brush.stamp(${text}, ${size}, '${align}');\n` +
                     c.compileNext(b)
                 );
             },

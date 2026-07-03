@@ -7,7 +7,10 @@ export const eventBlocks = {
     'self_on_tap': {
         isHat: true,
         generator(c, b) {
-            const type = c.extractParams(b).type || 'mouse_click';
+            const rawType = c.extractParams(b).type;
+            const type = rawType === 1 || rawType === 'mouse_down' ? 'mouse_down'
+                : rawType === 2 || rawType === 'mouse_up' ? 'mouse_up'
+                : 'mouse_click';
             const body = c.compileNext(b);
             if (!body) return `    // self_on_tap ${type} (empty)\n`;
             // Resolve sprite field: __self or absent → self.name, otherwise look up by ID
@@ -122,19 +125,7 @@ ${body}    }
     },
     'restart': {
         generator(c, b) {
-            return `\
-    {
-        const __task = __core__.scheduler._all[__core__.scheduler._currentTaskId];
-        if (__task && __task._restart) {
-            const __info = __task._restart;
-            __core__.scheduler.stopTask(__core__.scheduler._currentTaskId);
-            const __self2 = __actors__.getByName(__info.entityName) || __screens__.getByName(__info.entityName)?.bg || self;
-            const __gen2 = __info.factory(__self2, __screen__, __actors__, __screens__, __global__, __core__);
-            __core__.scheduler.startTask(__core__.scheduler._currentTaskId, __gen2, __info.entityName);
-        }
-        return;
-    }
-`;
+            return `    __core__.restart(); __core__.start();\n`;
         },
     },
 };

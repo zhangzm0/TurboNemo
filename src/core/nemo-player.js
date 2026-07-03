@@ -48,6 +48,7 @@ class NemoPlayer {
         this.screenManager._screenHooks = this._screenHooks;
 
         this._extensions = [];
+        this._persistentTickers = [];
         this._bcm = null;
 
         this.registry.registerAll(baseBlocks);
@@ -110,7 +111,8 @@ class NemoPlayer {
         const resize = () => this.stage.resize(this.width, this.height);
         window.addEventListener("resize", resize);
         resize();
-        this.app.ticker.add(() => this._tick());
+        this._tickFn = () => this._tick();
+        this.app.ticker.add(this._tickFn);
         this._YIELD_FRAME = { _yieldType: "frame" };
     }
 
@@ -127,6 +129,11 @@ class NemoPlayer {
     use(ext) {
         this._extensions.push(ext);
         this.registry.registerAll(ext.blocks || {});
+    }
+
+    addPersistentTicker(fn) {
+        this._persistentTickers.push(fn);
+        this.app.ticker.add(fn);
     }
 
     async loadFromWorkId(workId) {
@@ -283,10 +290,14 @@ class NemoPlayer {
         this.stage.htmlContainer.appendChild(this.stage.screensHtmlContainer);
         this.stage.htmlContainer.appendChild(this.stage.globalHtmlLayer);
 
-        // 清空 ticker（只保留核心 _tick）
+        // 清空所有 ticker，再重新添加核心 _tickFn 和持久 ticker
         let t = this.app.ticker._head;
         while (t) { const n = t.next; this.app.ticker.remove(t.fn); t = n; }
-        this.app.ticker.add(() => this._tick());
+        this._tickFn = () => this._tick();
+        this.app.ticker.add(this._tickFn);
+        for (const fn of this._persistentTickers) {
+            this.app.ticker.add(fn);
+        }
 
         // 清空事件监听（保留 tn:restart）
         const onRestart = this.eventBus._listeners['tn:restart'];

@@ -61,7 +61,13 @@ export default {
             const bgSprite = screen.bg?.sprite;
             if (!bgSprite) continue;
             bgSprite.interactive = true;
-            bgSprite.on('pointertap', () => core.eventBus.emit(`actor:pointertap:${screen.name}`));
+            let tapGuard = false;
+            bgSprite.on('pointertap', () => {
+                if (tapGuard) return;
+                tapGuard = true;
+                requestAnimationFrame(() => { tapGuard = false; });
+                core.eventBus.emit(`actor:pointertap:${screen.name}`);
+            });
             bgSprite.on('pointerdown', () => core.eventBus.emit(`actor:pointerdown:${screen.name}`));
             bgSprite.on('pointerup', () => core.eventBus.emit(`actor:pointerup:${screen.name}`));
             bgSprite.on('pointerupoutside', () => core.eventBus.emit(`actor:pointerup:${screen.name}`));

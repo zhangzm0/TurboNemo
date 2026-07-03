@@ -114,7 +114,7 @@ const fpsEl = document.getElementById('fps');
 const timerEl = document.getElementById('timer');
 let elapsed = 0;
 
-core.app.ticker.add(() => {
+core.addPersistentTicker(() => {
     fpsEl.textContent = `FPS: ${core.getFPS()}`;
     elapsed += core.app.ticker.deltaMS / 1000;
     const prec = core.settings?.get?.('timer.precision') ?? 2;

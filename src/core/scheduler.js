@@ -29,6 +29,20 @@ class Scheduler {
         this._eventBus.emit('task:started', { taskId });
     }
 
+    restartScript(taskId, self, screen, actors, screens, globalObj, core) {
+        const task = this._all[taskId];
+        if (!task || !task._restart) return null;
+        const info = task._restart;
+        this.stopTask(taskId);
+        const entity = actors.getByName(info.entityName)
+            || screens.getByName(info.entityName)?.bg
+            || self;
+        if (!entity) return null;
+        const gen = info.factory(entity, screen, actors, screens, globalObj, core);
+        this.startTask(taskId, gen, info.entityName);
+        return gen;
+    }
+
     stopTask(taskId) {
         const task = this._all[taskId];
         if (!task) return;
