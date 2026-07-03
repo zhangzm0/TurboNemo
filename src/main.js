@@ -45,6 +45,30 @@ const debugMode = params.get('debug') === '1';
 
 const core = new NemoPlayer({ container: 'body', width: 562, height: 900 });
 
+// 内置调试显示设置
+core.settings?.define({
+    id: 'fps.display',
+    label: 'FPS 显示',
+    type: 'boolean',
+    defaultValue: true,
+    category: 'debug', group: 'display',
+    apply(v) {
+        const el = document.getElementById('fps');
+        if (el) el.style.display = v ? '' : 'none';
+    },
+});
+core.settings?.define({
+    id: 'timer.display',
+    label: '计时器显示',
+    type: 'boolean',
+    defaultValue: true,
+    category: 'debug', group: 'display',
+    apply(v) {
+        const el = document.getElementById('timer');
+        if (el) el.style.display = v ? '' : 'none';
+    },
+});
+
 // 内置扩展
 core.use((await import('./extensions/screen/index.js')).default);
 core.use((await import('./extensions/actor/index.js')).default);
@@ -93,7 +117,8 @@ let elapsed = 0;
 core.app.ticker.add(() => {
     fpsEl.textContent = `FPS: ${core.getFPS()}`;
     elapsed += core.app.ticker.deltaMS / 1000;
-    timerEl.textContent = elapsed.toFixed(2) + 's';
+    const prec = core.settings?.get?.('timer.precision') ?? 2;
+    timerEl.textContent = elapsed.toFixed(prec) + 's';
 });
 
 // 监听加载进度
@@ -121,21 +146,16 @@ setTimeout(() => loadingEl.remove(), 300);
 
 // 显示开始按钮
 const overlay = document.getElementById('startOverlay');
-const restartBtn = document.getElementById('restartBtn');
 overlay.classList.remove('hidden');
 overlay.addEventListener('click', () => {
     overlay.classList.add('hidden');
-    restartBtn.style.display = 'flex';
     core.start();
 });
 
-// 重启
-restartBtn.addEventListener('click', () => {
-    restartBtn.style.display = 'none';
+// 监听菜单 "重启" 事件
+core.eventBus.on('tn:restart', () => {
     overlay.classList.remove('hidden');
     core.restart();
-    // 重新挂载 click 一次（restart 后需要再次 start）
-    // 但 overlay 的 click 回调已经绑定，再次点击就会 start
 });
 
 console.log('✅ 就绪');

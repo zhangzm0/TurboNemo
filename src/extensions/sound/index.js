@@ -35,6 +35,15 @@ export default {
         },
     },
     install(core) {
+        core.settings?.define({
+            id: 'audio.volume',
+            label: '音量',
+            type: 'number',
+            min: 0, max: 1, step: 0.05,
+            defaultValue: 1,
+            category: 'audio', group: 'volume',
+        });
+
         const self = this;
         const STATIC_BASE = 'https://static.codemao.cn/nemo/22';
         const activeAudios = []; // 所有活跃的 Audio 实例

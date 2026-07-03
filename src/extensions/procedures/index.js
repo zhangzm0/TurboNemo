@@ -69,6 +69,16 @@ export default {
         },
     },
     install(core) {
+        core.settings?.define({
+            id: 'procedures.recursion_limit',
+            label: '递归深度上限',
+            type: 'number',
+            min: 10, max: 100000, step: 10,
+            defaultValue: 10000,
+            category: 'engine', group: 'general',
+            restartSafe: false,
+        });
+
         core._procFns = {};
         core._callProcGen = function(name, self, screen, actors, screens, globalObj, coreRef, paramsObj) {
             const factory = coreRef._procFns?.[name];

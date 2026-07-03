@@ -8,6 +8,15 @@ export default {
     version: '1.0.0',
     blocks: { ...looksBlocks, ...dialogBlocks },
     install(core) {
+        core.settings?.define({
+            id: 'looks.dialog_font_size',
+            label: '对话框字号',
+            type: 'number',
+            min: 10, max: 48, step: 1,
+            defaultValue: 24,
+            category: 'looks', group: 'dialog',
+        });
+
         installDialog(core);
         core.selfHook('_effects', (actor) => (actor.sprite ? new Effects(actor.sprite) : null));
         core.selfHook('__fadeTo', (actor) => function* (targetAlpha, duration) {

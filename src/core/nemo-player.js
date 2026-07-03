@@ -7,6 +7,7 @@ import { AssetLoader } from "./asset-loader.js";
 import { Stage } from "./stage.js";
 import { ScreenManager } from "./screen-manager.js";
 import { ActorManager } from "./actor-manager.js";
+import { SettingsManager } from "./settings-manager.js";
 import { baseBlocks } from "../blocks/base.js";
 import { eventBlocks } from "../blocks/events.js";
 import { controlBlocks } from "../blocks/control.js";
@@ -20,7 +21,7 @@ class NemoPlayer {
             width: this.width,
             height: this.height,
             backgroundColor: 0x000000,
-            resolution: 1,
+            resolution: 0.3,
             autoDensity: true,
         });
         const el =
@@ -52,6 +53,8 @@ class NemoPlayer {
         this.registry.registerAll(baseBlocks);
         this.registry.registerAll(eventBlocks);
         this.registry.registerAll(controlBlocks);
+
+        this.settings = new SettingsManager(this);
 
         this._mouse = { x: 0, y: 0, down: false, click: false };
         this._swipe = { startX: 0, startY: 0, tracking: false };
@@ -128,18 +131,21 @@ class NemoPlayer {
 
     async loadFromWorkId(workId) {
         const bcm = await this.assetLoader.loadFromWorkId(workId);
+        this._bcmSource = JSON.stringify(bcm);
         this._bcm = bcm;
         this.width = this.assetLoader.designW;
         this.height = this.assetLoader.designH;
+        this._initFromBCM(bcm);
+    }
+
+    _initFromBCM(bcm) {
         this.stage.resize(this.width, this.height);
         for (const ext of this._extensions) {
             if (ext.init) {
                 const data = {};
                 if (ext.initData) {
                     for (const [key, path] of Object.entries(ext.initData)) {
-                        data[key] = path
-                            .split(".")
-                            .reduce((o, k) => o?.[k], bcm);
+                        data[key] = path.split(".").reduce((o, k) => o?.[k], bcm);
                     }
                 }
                 ext.init(this, data);
@@ -263,79 +269,54 @@ class NemoPlayer {
     }
 
     restart() {
-        // 保留：app（PIXI Application）、assetLoader（已加载的纹理）、_bcm、_extensions
-        const app = this.app;
-        const loader = this.assetLoader;
-        const bcm = this._bcm;
-        const extensions = this._extensions;
-        const registry = this.registry;
-        const compiler = this.compiler;
+        this.stop();
 
-        // 清空舞台上的屏幕容器
+        // 清空 PIXI 舞台
         this.stage.screensContainer.removeChildren()
             .forEach(c => c.destroy({ children: true, texture: false }));
-        while (this.stage.screensHtmlContainer.firstChild)
-            this.stage.screensHtmlContainer.removeChild(this.stage.screensHtmlContainer.firstChild);
-        while (this.stage.globalHtmlLayer.firstChild)
-            this.stage.globalHtmlLayer.removeChild(this.stage.globalHtmlLayer.firstChild);
 
-        // 重建核心组件
-        this.eventBus = new EventBus();
-        this.scheduler = new Scheduler(this.eventBus);
-        this.screenManager = new ScreenManager(this.stage);
-        this.actorManager = new ActorManager();
+        // 清空 HTML 层（包括两个子容器的内容）
+        while (this.stage.htmlContainer.firstChild)
+            this.stage.htmlContainer.removeChild(this.stage.htmlContainer.firstChild);
+        this.stage.screensHtmlContainer.innerHTML = '';
+        this.stage.globalHtmlLayer.innerHTML = '';
+        this.stage.htmlContainer.appendChild(this.stage.screensHtmlContainer);
+        this.stage.htmlContainer.appendChild(this.stage.globalHtmlLayer);
 
-        this._globalHooks = {};
-        this._screenHooks = {};
-        this._selfHooks = {};
-
-        this.actorManager._selfHooks = this._selfHooks;
-        this.screenManager._selfHooks = this._selfHooks;
-        this.screenManager._screenHooks = this._screenHooks;
-        this.actorManager._eventBus = this.eventBus;
-
-        // 确保 loader 指向新 eventBus（后续不会再加载，但保持一致性）
-        loader._eventBus = this.eventBus;
-
-        // 重置鼠标状态（DOM 监听器在 app.view 上永久存在，只重置数据）
-        this._mouse = { x: 0, y: 0, down: false, click: false };
-        this._swipe = { startX: 0, startY: 0, tracking: false };
-        this.globalHook("__mouse__", () => this._mouse);
-
-        // 清空 app.ticker（扩展注册的 ticker 回调随 restart 废弃）
+        // 清空 ticker（只保留核心 _tick）
         let t = this.app.ticker._head;
         while (t) { const n = t.next; this.app.ticker.remove(t.fn); t = n; }
         this.app.ticker.add(() => this._tick());
 
-        // 恢复舞台尺寸
-        this.width = loader.designW || 562;
-        this.height = loader.designH || 900;
-        this.stage.resize(this.width, this.height);
+        // 清空事件监听（保留 tn:restart）
+        const onRestart = this.eventBus._listeners['tn:restart'];
+        this.eventBus.removeAll();
+        if (onRestart) this.eventBus._listeners['tn:restart'] = onRestart;
 
-        // 重新注册所有扩展
-        for (const ext of extensions) {
-            if (ext.init) {
-                const data = {};
-                if (ext.initData) {
-                    for (const [key, path] of Object.entries(ext.initData)) {
-                        data[key] = path.split('.').reduce((o, k) => o?.[k], bcm);
-                    }
-                }
-                ext.init(this, data);
-            }
-            if (ext.install) ext.install(this);
-        }
+        // 重置管理器（保持 hook 引用连通）
+        this.scheduler = new Scheduler(this.eventBus);
+        this.screenManager.reset();
+        this.actorManager.reset();
+        for (const k of Object.keys(this._selfHooks)) delete this._selfHooks[k];
+        for (const k of Object.keys(this._screenHooks)) delete this._screenHooks[k];
+        for (const k of Object.keys(this._globalHooks)) delete this._globalHooks[k];
 
-        // 重挂 selfHooks 到新角色/背景
-        for (const [name, factory] of Object.entries(this._selfHooks)) {
-            for (const a of this.actorManager.list)
-                if (!a[name]) a[name] = factory(a);
-            for (const s of this.screenManager.list)
-                if (s.bg && !s.bg[name]) s.bg[name] = factory(s.bg);
-        }
+        // 重置鼠标
+        this._mouse = { x: 0, y: 0, down: false, click: false };
+        this._swipe = { startX: 0, startY: 0, tracking: false };
+        this.globalHook("__mouse__", () => this._mouse);
 
-        // 重新编译脚本
-        this._compileAll(bcm);
+        // 恢复尺寸并应用设置
+        this.width = this.assetLoader.designW || 562;
+        this.height = this.assetLoader.designH || 900;
+        this.settings._applyAll();
+
+        // 从原始 JSON 恢复 BCM（避免运行时 mutation 污染）
+        this._bcm = JSON.parse(this._bcmSource);
+        this.assetLoader.bcm = this._bcm;
+
+        // 重建（扩展 init/install + 编译）
+        this._initFromBCM(this._bcm);
     }
 
     start() {

@@ -2,11 +2,13 @@
 import { askBlocks, installAsk } from './ask.js';
 import { chooseBlocks, installChoose } from './choose.js';
 import { printBlocks, installPrint } from './print.js';
+import { bubbleBlocks, installBubble } from './bubble.js';
 
-export const dialogBlocks = { ...askBlocks, ...chooseBlocks, ...printBlocks };
+export const dialogBlocks = { ...askBlocks, ...chooseBlocks, ...printBlocks, ...bubbleBlocks };
 
 export function installDialog(core) {
     installAsk(core);
     installChoose(core);
     installPrint(core);
+    installBubble(core);
 }

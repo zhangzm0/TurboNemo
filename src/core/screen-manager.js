@@ -14,6 +14,13 @@ class ScreenManager {
         this._transition = new Transition();
     }
 
+    reset() {
+        this.list = [];
+        this._current = null;
+        this._transitionType = 'none';
+        this._transition = new Transition();
+    }
+
     createScreen(name, bgTexture, w, h) {
         const container = new PIXI.Container();
         container.name = name;

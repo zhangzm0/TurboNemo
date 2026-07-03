@@ -11,6 +11,17 @@ class ActorManager {
         this._spritePool = [];
     }
 
+    reset() {
+        for (const actor of this.list) {
+            if (actor.sprite.parent) actor.sprite.parent.removeChild(actor.sprite);
+            actor.sprite.removeAllListeners();
+        }
+        this._spritePool = [];
+        this.list = [];
+        this._byName = {};
+        this._clones = {};
+    }
+
     _recycleSprite(sprite) {
         if (sprite.parent) sprite.parent.removeChild(sprite);
         sprite.removeAllListeners();
