@@ -8,12 +8,24 @@ class AssetLoader {
         this._eventBus = eventBus;
         this._textures = {};
         this._audios = {};
+        this._packs = {};
+        this._packData = {};
         this.bcm = null;
         this.designW = 562;
         this.designH = 900;
     }
 
     getTexture(id) { return this._textures[id] || null; }
+
+    // Register a resource pack (called by extensions before load)
+    registerPack(name, resources) {
+        this._packs[name] = resources;
+    }
+
+    // Get loaded pack data by pack name and resource id
+    getPackData(name, id) {
+        return this._packData[name]?.[id] ?? null;
+    }
 
     _resolveUrl(style) {
         if (style.url) return style.url.startsWith('http') ? style.url : `${CDN_BASE}/${style.url}`;
@@ -52,15 +64,29 @@ class AssetLoader {
         });
     }
 
+    async _loadPacks() {
+        const all = [];
+        for (const [name, resources] of Object.entries(this._packs)) {
+            this._packData[name] = {};
+            for (const res of resources) {
+                all.push(
+                    fetch(res.url)
+                        .then(r => r.arrayBuffer())
+                        .then(buf => { this._packData[name][res.id] = buf; })
+                        .catch(e => { console.warn(`pack ${name} ${res.id} failed:`, e.message); })
+                );
+            }
+        }
+        await Promise.all(all);
+    }
+
     async loadFromWorkId(workId) {
-        // ?local=1 to load local work.bcm
         if (new URLSearchParams(window.location.search).get('local') === '1') {
             try {
                 const localResp = await fetch('/work.bcm');
                 if (localResp.ok) return this.loadFromJSON(await localResp.json());
             } catch (_) {}
         }
-        // Try local {workId}.bcm first, fall back to remote API
         try {
             const localResp = await fetch(`/${workId}.bcm`);
             if (localResp.ok) return this.loadFromJSON(await localResp.json());
@@ -83,6 +109,7 @@ class AssetLoader {
         this.designH = bcm.stage_size?.height || 900;
         const urls = this._collectUrls(bcm);
         await this._loadAssets(urls);
+        await this._loadPacks();
         this._eventBus.emit('loader:complete', { bcm });
         return bcm;
     }

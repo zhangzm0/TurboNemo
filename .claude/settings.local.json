@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git add src/blocks/base.js src/blocks/events.js src/core/nemo-player.js src/extensions/operators/index.js src/extensions/sound/index.js)"
+    ]
+  }
+}
