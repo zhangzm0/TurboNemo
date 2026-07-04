@@ -31,7 +31,7 @@ const bcmUrl = params.get('url');
     // 加载所有扩展
     const exts = [
         'motion', 'looks', 'operators', 'data', 'sensing',
-        'clone', 'sound', 'pen', 'procedures', 'broadcast',
+        'clone', 'sound', 'midi', 'pen', 'procedures', 'broadcast',
     ];
     for (const name of exts) {
         try {

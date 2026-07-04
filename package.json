@@ -22,8 +22,11 @@
     "webpack-dev-server": "^5.0.0"
   },
   "dependencies": {
-    "pixi.js-legacy": "^5.3.12",
+    "@tonejs/midi": "^2.0.28",
+    "mdui": "^2.1.4",
     "pixi-ppi": "^1.0.1",
-    "puppeteer-core": "^25.1.0"
+    "pixi.js-legacy": "^5.3.12",
+    "puppeteer-core": "^25.1.0",
+    "tone": "^15.1.22"
   }
 }

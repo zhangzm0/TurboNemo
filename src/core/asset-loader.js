@@ -27,6 +27,43 @@ class AssetLoader {
         return this._packData[name]?.[id] ?? null;
     }
 
+    // Get the entire pack data object (shared reference, populated async)
+    getPack(name) {
+        return this._packData[name] ?? null;
+    }
+
+    // Load all registered packs (called from nemo-player after extension init)
+    async loadPacks() {
+        const all = [];
+        for (const [name, resources] of Object.entries(this._packs)) {
+            if (this._packData[name]) continue; // 已加载
+            this._packData[name] = {};
+            for (const res of resources) {
+                all.push(
+                    fetch(res.url)
+                        .then(r => r.arrayBuffer())
+                        .then(buf => { this._packData[name][res.id] = buf; })
+                        .catch(e => { console.warn(`pack ${name} ${res.id} failed:`, e.message); })
+                );
+            }
+        }
+        await Promise.all(all);
+    }
+
+    // 按名加载指定 pack（用于单个 pack 手动触发）
+    async loadPack(name) {
+        const resources = this._packs[name];
+        if (!resources) return;
+        if (this._packData[name]) return;
+        this._packData[name] = {};
+        await Promise.all(resources.map(res =>
+            fetch(res.url)
+                .then(r => r.arrayBuffer())
+                .then(buf => { this._packData[name][res.id] = buf; })
+                .catch(e => { console.warn(`pack ${name} ${res.id} failed:`, e.message); })
+        ));
+    }
+
     _resolveUrl(style) {
         if (style.url) return style.url.startsWith('http') ? style.url : `${CDN_BASE}/${style.url}`;
         if (style.texture) return `${STATIC_BASE}/${style.texture}`;
@@ -64,22 +101,6 @@ class AssetLoader {
         });
     }
 
-    async _loadPacks() {
-        const all = [];
-        for (const [name, resources] of Object.entries(this._packs)) {
-            this._packData[name] = {};
-            for (const res of resources) {
-                all.push(
-                    fetch(res.url)
-                        .then(r => r.arrayBuffer())
-                        .then(buf => { this._packData[name][res.id] = buf; })
-                        .catch(e => { console.warn(`pack ${name} ${res.id} failed:`, e.message); })
-                );
-            }
-        }
-        await Promise.all(all);
-    }
-
     async loadFromWorkId(workId) {
         if (new URLSearchParams(window.location.search).get('local') === '1') {
             try {
@@ -109,7 +130,6 @@ class AssetLoader {
         this.designH = bcm.stage_size?.height || 900;
         const urls = this._collectUrls(bcm);
         await this._loadAssets(urls);
-        await this._loadPacks();
         this._eventBus.emit('loader:complete', { bcm });
         return bcm;
     }

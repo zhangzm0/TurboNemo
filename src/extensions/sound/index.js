@@ -1,4 +1,4 @@
-// src/extensions/sound/index.js
+// ==================== extensions/sound/index.js ====================
 export default {
     name: 'sound',
     version: '1.0.0',
@@ -31,7 +31,10 @@ export default {
             },
         },
         'audio__stop_all_audios': {
-            generator(c, b) { return `    __global__.__sound__.stopAll();\n` + c.compileNext(b); },
+            generator(c, b) {
+                const id = c.compileValue(b, 'audio');
+                return `    __global__.__sound__.stopAll(${id});\n` + c.compileNext(b);
+            },
         },
     },
     install(core) {
@@ -46,13 +49,17 @@ export default {
 
         const self = this;
         const STATIC_BASE = 'https://static.codemao.cn/nemo/22';
-        const activeAudios = []; // 所有活跃的 Audio 实例
+        const activeAudios = [];
+
+        function midiEngine() { return core.__midiRef || null; }
 
         const soundApi = {
             play(id) {
-                const def = self._sounds[id];
-                if (!def) return;
-                const url = def.url?.startsWith('http') ? def.url : `${STATIC_BASE}/${def.url}`;
+                if (Array.isArray(id)) return;
+                const s = self._sounds[id];
+                if (s?.ext === 'mid') { midiEngine()?.playMidi(id); return; }
+                if (!s) return;
+                const url = s.url?.startsWith('http') ? s.url : `${STATIC_BASE}/${s.url}`;
                 const audio = new Audio(url);
                 audio.play().catch(() => {});
                 audio.onended = () => {
@@ -62,9 +69,18 @@ export default {
                 activeAudios.push(audio);
             },
             playAndWait(id) {
-                const def = self._sounds[id];
-                if (!def) return null;
-                const url = def.url?.startsWith('http') ? def.url : `${STATIC_BASE}/${def.url}`;
+                if (Array.isArray(id)) return null;
+                const s = self._sounds[id];
+                if (s?.ext === 'mid') {
+                    const m = midiEngine();
+                    if (m) {
+                        const ev = `midi:ended:${id}:${Date.now()}`;
+                        m.playMidi(id, null, null, null, () => core.eventBus.emit(ev));
+                        return ev;
+                    }
+                }
+                if (!s) return null;
+                const url = s.url?.startsWith('http') ? s.url : `${STATIC_BASE}/${s.url}`;
                 const audio = new Audio(url);
                 audio.play().catch(() => {});
                 const eventName = `audio:ended:${id}:${Date.now()}`;
@@ -73,16 +89,21 @@ export default {
                     if (idx > -1) activeAudios.splice(idx, 1);
                     core.eventBus.emit(eventName);
                 };
-                audio.onerror = () => {
-                    core.eventBus.emit(eventName);
-                };
+                audio.onerror = () => { core.eventBus.emit(eventName); };
                 activeAudios.push(audio);
                 return eventName;
             },
-            stopAll() {
-                activeAudios.forEach(a => {
+            stopAll(audioId) {
+                if (!audioId || audioId === '__all_sounds') {
+                    activeAudios.forEach(a => { a.pause(); a.currentTime = 0; });
+                    activeAudios.length = 0;
+                    midiEngine()?.stopAll();
+                    return;
+                }
+                activeAudios.forEach((a, i) => {
                     a.pause();
                     a.currentTime = 0;
+                    delete activeAudios[i];
                 });
                 activeAudios.length = 0;
             },

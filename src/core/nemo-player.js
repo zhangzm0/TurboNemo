@@ -157,6 +157,9 @@ class NemoPlayer {
                 }
                 ext.init(this, data);
             }
+        }
+        this.assetLoader.loadPacks();
+        for (const ext of this._extensions) {
             if (ext.install) ext.install(this);
         }
         for (const [name, factory] of Object.entries(this._selfHooks)) {
