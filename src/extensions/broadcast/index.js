@@ -1,5 +1,6 @@
 // src/extensions/broadcast/index.js
 const _bwCounts = {};
+import { def } from '../../blocks/def.js';
 
 export default {
     name: 'broadcast',
@@ -11,40 +12,49 @@ export default {
         for (const k of Object.keys(_bwCounts)) delete _bwCounts[k];
     },
     blocks: {
-        'self_listen': {
+        'self_listen': def({
             isHat: true,
-            generator(c, b) {
-                const msg = b.querySelector(':scope > field[name="message"]')?.textContent.trim() || '';
-                const body = c.compileStatement(b, 'DO');
+            args0: [
+                { type: 'field_dropdown', name: 'message' },
+                { type: 'input_statement', name: 'DO' },
+            ],
+            js({fields, statements}) {
+                const msg = fields.message || '';
+                const body = statements.DO;
                 if (!body) return `    // listen: ${msg} (empty)\n`;
+                const safeMsg = msg.replace(/'/g, "\\'");
                 return `\
     while (true) {
         const __params = yield { _yieldType: "pause", event: \`broadcast:\${__screen__.name}:${msg}\` };
-        __screen__.broadcast.bwInc('${msg}');
-${body}        __screen__.broadcast.bwDec('${msg}');
+        __screen__.broadcast.bwInc('${safeMsg}');
+${body}        __screen__.broadcast.bwDec('${safeMsg}');
     }
 `;
             },
-        },
-        'self_broadcast': {
-            generator(c, b) {
-                const msg = b.querySelector(':scope > field[name="message"]')?.textContent.trim() || '';
-                return `    __screen__.broadcast.send('${msg}');\n` + c.compileNext(b);
+        }),
+        'self_broadcast': def({
+            args0: [{ type: 'field_dropdown', name: 'message' }],
+            js({fields, next}) {
+                const msg = fields.message || '';
+                const safeMsg = msg.replace(/'/g, "\\'");
+                return `    yield __core__._YIELD_FRAME;\n    __screen__.broadcast.send('${safeMsg}');\n` + next;
             },
-        },
-        'self_broadcast_and_wait': {
-            generator(c, b) {
-                const msg = b.querySelector(':scope > field[name="message"]')?.textContent.trim() || '';
+        }),
+        'self_broadcast_and_wait': def({
+            args0: [{ type: 'field_dropdown', name: 'message' }],
+            js({fields, next}) {
+                const msg = fields.message || '';
+                const safeMsg = msg.replace(/'/g, "\\'");
                 return `\
-    __screen__.broadcast.bwStart('${msg}');
-    __screen__.broadcast.send('${msg}');
+    __screen__.broadcast.bwStart('${safeMsg}');
+    __screen__.broadcast.send('${safeMsg}');
     yield __core__._YIELD_FRAME;
-    while (__screen__.broadcast.bwCheck('${msg}')) {
+    while (__screen__.broadcast.bwCheck('${safeMsg}')) {
         yield __core__._YIELD_FRAME;
     }
-` + c.compileNext(b);
+` + next;
             },
-        },
+        }),
     },
     install(core) {
         core.screenHook('broadcast', (screen) => ({

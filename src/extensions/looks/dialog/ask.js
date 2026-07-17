@@ -1,4 +1,5 @@
 // ==================== extensions/looks/dialog/ask.js ====================
+import { def } from '../../../blocks/def.js';
 import { createPanel, createDialogContainer } from "./panel.js";
 
 const CONFIRM_BG = new URL("res/ask_dialog_confirm.png", import.meta.url).href;
@@ -24,20 +25,18 @@ function getAvatarUrl(actor) {
 }
 
 export const askBlocks = {
-    self_ask: {
-        generator(c, b) {
-            const text = c.compileValue(b, "text");
-            return (
-                `    __global__.__askDialog__.show(self, ${text});\n    self._answer = (yield { _yieldType: "pause", event: "ask:answered" });\n` +
-                c.compileNext(b)
-            );
+    self_ask: def({
+        args0: [{ type: 'input_value', name: 'text' }],
+        js({values, next}) {
+            return `    __global__.__askDialog__.show(self, ${values.text});\n    self._answer = (yield { _yieldType: "pause", event: "ask:answered" });\n` + next;
         },
-    },
-    get_answer: {
-        generator(c, b) {
+    }),
+    get_answer: def({
+        output: 'String',
+        js() {
             return `(self._answer ?? '')`;
         },
-    },
+    }),
 };
 
 export function installAsk(core) {

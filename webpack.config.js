@@ -3,10 +3,7 @@ const HtmlWebpackPlugin = require('html-webpack-plugin');
 const webpack = require('webpack');
 
 module.exports = {
-    entry: {
-        main: './src/main.js',
-        'compile-dump': './test/compile-dump.js',
-    },
+    entry: './src/main.js',
     output: {
         path: path.resolve(__dirname, 'dist'),
         filename: '[name].[contenthash:8].js',
@@ -20,14 +17,6 @@ module.exports = {
         new HtmlWebpackPlugin({
             template: 'index.html',
             inject: true,
-            chunks: ['main'],
-            filename: 'index.html',
-        }),
-        new HtmlWebpackPlugin({
-            template: 'test/compile-dump.html',
-            inject: true,
-            chunks: ['compile-dump'],
-            filename: 'compile-dump.html',
         }),
         new webpack.ProvidePlugin({
             PIXI: 'pixi.js-legacy',

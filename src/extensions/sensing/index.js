@@ -9,28 +9,63 @@ import { timer } from './timer/index.js';
 const _texPointCache = new Map();
 
 /**
- * Extract non-transparent pixel positions from a texture (texture points).
- * Cached per texture — matches official get_texture_points_position approach.
+ * Collision optimization scale factor — matches official COLLISION_OPTIMIZATION_SCALE_FACTOR = 0.7.
+ * Pixel data is stored at 0.7x resolution, and color collision rendering also uses 0.7x.
  */
-function getTexturePoints(renderer, texture) {
-    const key = texture.uid || texture.textureCacheIds?.[0];
+const COLLISION_SCALE = 0.7;
+
+/**
+ * Bounds expansion in pixels — matches official EXTEND_PIXELS = 5.
+ */
+const EXTEND_PIXELS = 5;
+
+/**
+ * Extract non-transparent pixel positions from a texture (texture points).
+ * Uses canvas-based approach — avoids extract.pixels(texture) which can fail
+ * with plain Texture objects in PIXI v5.
+ * Points are stored at 0.7x scaled resolution, matching official
+ * get_texture_points_position (internal + bounds points in collision-optimized space).
+ */
+function getTexturePoints(texture) {
+    const key = texture.uid || texture.baseTexture?.uid || texture.textureCacheIds?.[0];
     if (!key) return null;
     if (_texPointCache.has(key)) return _texPointCache.get(key);
 
-    let pixels;
-    try { pixels = renderer.plugins.extract.pixels(texture); }
-    catch (_e) { return null; }
-
     const texW = texture.orig.width;
     const texH = texture.orig.height;
-    if (!texW || !texH || pixels.length < 4) return null;
+    if (!texW || !texH) return null;
+
+    const scaledW = Math.max(1, Math.floor(texW * COLLISION_SCALE));
+    const scaledH = Math.max(1, Math.floor(texH * COLLISION_SCALE));
+
+    const canvas = document.createElement('canvas');
+    canvas.width = scaledW;
+    canvas.height = scaledH;
+    const ctx = canvas.getContext('2d');
+    // Get drawable source from the base texture
+    const srcRes = texture.baseTexture?.resource;
+    let source = srcRes?.source || texture.baseTexture?.getDrawableSource?.();
+    if (!source) {
+        // For CanvasResource, source is on the resource
+        if (srcRes && typeof srcRes === 'object' && 'canvas' in srcRes) {
+            source = srcRes.canvas;
+        }
+    }
+    if (!source) return null;
+    // Draw only the texture's frame region (supports spritesheet sub-textures)
+    ctx.drawImage(source,
+        texture.frame.x || 0, texture.frame.y || 0,
+        texW, texH,
+        0, 0, scaledW, scaledH);
+    const scaledData = ctx.getImageData(0, 0, scaledW, scaledH).data;
 
     const points = [];
-    const step = 3;
-    for (let ty = 0; ty < texH; ty += step) {
-        for (let tx = 0; tx < texW; tx += step) {
-            const idx = (ty * texW + tx) << 2;
-            if (idx + 3 < pixels.length && pixels[idx + 3] > 0) {
+    const step = 2;  // step=2 at 0.7x → ~3px step at 1x
+    for (let ty = 0; ty < scaledH; ty += step) {
+        for (let tx = 0; tx < scaledW; tx += step) {
+            const idx = (ty * scaledW + tx) << 2;
+            if (idx + 3 < scaledData.length && scaledData[idx + 3] > 0) {
+                // Store in 0.7x scaled space (matching official)
                 points.push({ x: tx, y: ty });
             }
         }
@@ -57,7 +92,10 @@ export default {
 
         // color collision detection for bump_into_color block
         // One shared RenderTexture, resized as needed (matches official approach)
-        let _bumpRT = new PIXI.RenderTexture(new PIXI.BaseRenderTexture());
+        // Force resolution 1 to match official — avoids resolution scaling issues with extract.pixels()
+        let _bumpBaseRT = new PIXI.BaseRenderTexture();
+        _bumpBaseRT.resolution = 1;
+        let _bumpRT = new PIXI.RenderTexture(_bumpBaseRT);
         core.actorManager.checkBumpedColor = function (actorName, hexColor) {
             const actor = this._byName[actorName];
             if (!actor?.sprite || !actor.sprite.visible) return false;
@@ -67,86 +105,145 @@ export default {
             const stage = core.app?.stage;
             if (!renderer || !stage) return false;
 
-            // Skip if sprite has no valid texture
             if (!sprite.texture || !sprite.texture.valid) return false;
             if (!sprite.transform || !sprite.parent) return false;
 
-            // Get cached texture points (non-transparent pixel positions)
-            const texPoints = getTexturePoints(renderer, sprite.texture);
+            // Force update all pen canvas textures so the latest strokes are
+            // on the GPU (WebGL) before we render to the collision RT.
+            for (const s of core.screenManager.list) {
+                s.penCanvas?.texture.update();
+            }
+
+            const texPoints = getTexturePoints(sprite.texture);
             if (!texPoints || texPoints.length === 0) return false;
 
-            let bounds;
-            try { bounds = sprite.getBounds(); }
+            let box;
+            try { box = sprite.getBounds(); }
             catch (_e) { return false; }
-            if (typeof bounds?.width !== 'number' || typeof bounds?.height !== 'number' ||
-                typeof bounds?.x !== 'number' || typeof bounds?.y !== 'number') return false;
+            if (typeof box?.width !== 'number' || typeof box?.height !== 'number' ||
+                typeof box?.x !== 'number' || typeof box?.y !== 'number') return false;
 
-            const w = Math.ceil(bounds.width);
-            const h = Math.ceil(bounds.height);
-            if (!(w > 0) || !(h > 0) || w > 2048 || h > 2048) return false;
+            const stageW = core.width;
+            const stageH = core.height;
+            const halfW = stageW / 2;
+            const halfH = stageH / 2;
 
+            const vertMinX = box.x - halfW;
+            const vertMaxX = box.x + box.width - halfW;
+            const vertMinY = box.y - halfH;
+            const vertMaxY = box.y + box.height - halfH;
+
+            const extL = Math.round(Math.max(-halfW, Math.min(halfW, vertMinX - EXTEND_PIXELS)));
+            const extR = Math.round(Math.max(-halfW, Math.min(halfW, vertMaxX + EXTEND_PIXELS)));
+            const extT = Math.round(Math.max(-halfH, Math.min(halfH, vertMinY - EXTEND_PIXELS)));
+            const extB = Math.round(Math.max(-halfH, Math.min(halfH, vertMaxY + EXTEND_PIXELS)));
+            const extW = Math.floor(extR - extL);
+            const extH = Math.floor(extB - extT);
+            if (extW === 0 || extH === 0) return false;
+
+            const bounds = { x: extL, y: extT, width: extW, height: extH };
+
+            // 3. Scaled bounds size (official get_collision_optimization_scaled_size)
+            const scaledW = Math.floor(bounds.width * COLLISION_SCALE);
+            const scaledH = Math.floor(bounds.height * COLLISION_SCALE);
+            if (scaledW === 0 || scaledH === 0) return false;
+
+            // 4. Parse color to RGB (official hex_to_rgb)
             const colorHex = parseInt(hexColor, 16);
             if (isNaN(colorHex)) return false;
-            const targetR = (colorHex >> 16) & 255;
-            const targetG = (colorHex >> 8) & 255;
-            const targetB = colorHex & 255;
+            const colorRgb = [(colorHex >> 16) & 255, (colorHex >> 8) & 255, colorHex & 255];
 
+            // 5. Hide actor, render the rest of the stage
+            const prevVisible = sprite.visible;
             sprite.visible = false;
             try {
-                // Resize render texture in-place
+                // Resize render texture
                 try {
-                    _bumpRT.resize(w, h, true);
+                    _bumpRT.resize(scaledW, scaledH, true);
                 } catch (_e) {
                     _bumpRT.destroy(true);
-                    _bumpRT = new PIXI.RenderTexture(new PIXI.BaseRenderTexture());
-                    _bumpRT.resize(w, h, true);
+                    _bumpBaseRT = new PIXI.BaseRenderTexture();
+                    _bumpBaseRT.resolution = 1;
+                    _bumpRT = new PIXI.RenderTexture(_bumpBaseRT);
+                    _bumpRT.resize(scaledW, scaledH, true);
                     if (!_bumpRT.baseRenderTexture) return false;
                 }
-                // Render stage (without this sprite) to the render texture
+
+                // Build transform matrix (official get_screenshot_area_transform_matrix)
+                // Maps centered-stage coord (gx, gy) → render texture pixel (rx, ry)
+                // tx = -floor((bounds.x + stageW/2) * 0.7), ty = -floor((bounds.y + stageH/2) * 0.7)
+                // a = d = 0.7
                 try {
-                    renderer.render(stage, {
-                        renderTexture: _bumpRT,
-                        transform: new PIXI.Matrix().translate(-bounds.x, -bounds.y),
-                    });
+                    renderer.render(stage, _bumpRT, true, new PIXI.Matrix(
+                        COLLISION_SCALE, 0, 0, COLLISION_SCALE,
+                        -Math.floor((bounds.x + halfW) * COLLISION_SCALE),
+                        -Math.floor((bounds.y + halfH) * COLLISION_SCALE)
+                    ));
                 } catch (_e) { return false; }
-                // Read pixels from render texture
+
+                // Read pixels (official extract.pixels)
                 let pixels;
                 try { pixels = renderer.plugins.extract.pixels(_bumpRT); }
                 catch (_e) { return false; }
 
-                // Ensure world transform is up-to-date (PIXI ticker runs scheduler before updateTransform)
-                sprite._recursivePostUpdateTransform();
-                // Pre-compute sprite world transform for point mapping
-                const wt = sprite.worldTransform;
-                const origW = sprite.texture.orig.width;
-                const origH = sprite.texture.orig.height;
-                const ax = sprite.anchor.x;
-                const ay = sprite.anchor.y;
+                // 6. Iterate texture points (official color_match_texture_points loop)
+                const scaleX = sprite.scale.x;
+                const scaleY = sprite.scale.y;
+                const pivX = sprite.pivot.x;
+                const pivY = sprite.pivot.y;
+                const posX = sprite.x;
+                const posY = sprite.y;
+                const rot = sprite.rotation;
+                const cosR = Math.cos(rot);
+                const sinR = Math.sin(rot);
+                const sprW = sprite.width;
+                const sprH = sprite.height;
 
-                // Map each texture point through sprite transform and check color
                 for (let i = 0; i < texPoints.length; i++) {
                     const pt = texPoints[i];
-                    // Texture pixel → sprite local coords (accounting for anchor)
-                    const lx = pt.x - ax * origW;
-                    const ly = pt.y - ay * origH;
-                    // Sprite local → global (stage) coords via world transform
-                    const gx = wt.tx + lx * wt.a + ly * wt.c;
-                    const gy = wt.ty + lx * wt.b + ly * wt.d;
-                    // Global coords → render texture coords
-                    const rx = Math.floor(gx - bounds.x);
-                    const ry = Math.floor(gy - bounds.y);
-                    if (rx < 0 || rx >= w || ry < 0 || ry >= h) continue;
-                    const idx = (ry * w + rx) << 2;
+
+                    // Step A: collision_opti_scaled_to_origin_point — unscale 0.7x → 1x
+                    const ox = Math.floor(pt.x / COLLISION_SCALE);
+                    const oy = Math.floor(pt.y / COLLISION_SCALE);
+
+                    // Step B: map_actor_px_to_local_point (official, exactly)
+                    //   origin_center = pos - pivot * scale
+                    const ocx = posX - pivX * scaleX;
+                    const ocy = posY - pivY * scaleY;
+                    //   scale texture pixel
+                    const sx = ox * scaleX;
+                    const sy = oy * scaleY;
+                    //   pre-rotation position, adjusting for anchor(0.5)
+                    const prx = scaleX > 0
+                        ? sx + ocx - sprW / 2
+                        : sx + ocx + sprW / 2;
+                    const pry = scaleY > 0
+                        ? sy + ocy - sprH / 2
+                        : sy + ocy + sprH / 2;
+                    //   rotate around position (make_rotate)
+                    const dx = prx - posX;
+                    const dy = pry - posY;
+                    const lx = cosR * dx - sinR * dy + posX;
+                    const ly = sinR * dx + cosR * dy + posY;
+
+                    // Step C: (local - bounds) → origin_to_collision_opti_scaled_point
+                    const rx = Math.floor((lx - bounds.x) * COLLISION_SCALE);
+                    const ry = Math.floor((ly - bounds.y) * COLLISION_SCALE);
+
+                    // Official only guards upper bounds (negative index → undefined pixels → false)
+                    if (rx >= scaledW || ry >= scaledH) continue;
+
+                    // Step D: color_match
+                    const idx = (ry * scaledW + rx) << 2;
                     if (idx + 2 >= pixels.length) continue;
-                    // Compare color with bitmask (matches official color_match)
-                    if ((pixels[idx] & 248) === (targetR & 248) &&
-                        (pixels[idx + 1] & 248) === (targetG & 248) &&
-                        (pixels[idx + 2] & 240) === (targetB & 240)) {
+                    if ((colorRgb[0] & 248) === (pixels[idx] & 248) &&
+                        (colorRgb[1] & 248) === (pixels[idx + 1] & 248) &&
+                        (colorRgb[2] & 240) === (pixels[idx + 2] & 240)) {
                         return true;
                     }
                 }
             } finally {
-                sprite.visible = true;
+                sprite.visible = prevVisible;
             }
             return false;
         };

@@ -1,4 +1,5 @@
 // ==================== extensions/looks/dialog/choose.js ====================
+import { def } from '../../../blocks/def.js';
 import { createPanel, createDialogContainer } from './panel.js';
 
 const CHOICE_STYLE = {
@@ -25,28 +26,30 @@ function getAvatarUrl(actor) {
 }
 
 export const chooseBlocks = {
-    'ask_and_choose': {
-        generator(c, b) {
-            const question = c.compileValue(b, 'question');
+    'ask_and_choose': def({
+        args0: [{ type: 'input_value', name: 'question' }],
+        js({values, next, blockEl}) {
+            const question = values.question;
             const choices = [];
-            for (let i = 0; i < 4; i++) {
-                const val = c.compileValue(b, `CHOICE${i}`);
+            for (let i = 0; ; i++) {
+                const val = values[`CHOICE${i}`];
+                if (val === undefined) break;
                 // 仅当有用户拖入的 block（非 shadow）或值不为默认 0 时才加入选项
-                if (b.querySelector(`value[name="CHOICE${i}"] > block`) || val !== '0') {
+                if (blockEl.querySelector(`value[name="CHOICE${i}"] > block`) || val !== '(0)') {
                     choices.push(val);
                 }
             }
             const choicesArr = '[' + choices.join(', ') + ']';
-            return `    __global__.__chooseDialog__.showChoices(self, ${question}, ${choicesArr});\n    { const __res = (yield { _yieldType: "pause", event: "ask:choiceMade" }); self._choiceIndex = __res.index; self._choiceResult = __res.content; }\n` + c.compileNext(b);
+            return `    __global__.__chooseDialog__.showChoices(self, ${question}, ${choicesArr});\n    { const __res = (yield { _yieldType: "pause", event: "ask:choiceMade" }); self._choiceIndex = __res.index; self._choiceResult = __res.content; }\n` + next;
         },
-    },
-    'get_choice_or_index': {
-        generator(c, b) {
-            const type = c.extractParams(b).type || 'select_index';
-            if (type === 'select_index') return `((self._choiceIndex ?? 0) + 1)`;
+    }),
+    'get_choice_or_index': def({
+        args0: [{ type: 'field_dropdown', name: 'type' }],
+        js({fields}) {
+            if ((fields.type || 'select_index') === 'select_index') return `((self._choiceIndex ?? 0) + 1)`;
             return `(self._choiceResult ?? '')`;
         },
-    },
+    }),
 };
 
 export function installChoose(core) {

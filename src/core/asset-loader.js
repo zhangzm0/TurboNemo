@@ -102,16 +102,6 @@ class AssetLoader {
     }
 
     async loadFromWorkId(workId) {
-        if (new URLSearchParams(window.location.search).get('local') === '1') {
-            try {
-                const localResp = await fetch('/work.bcm');
-                if (localResp.ok) return this.loadFromJSON(await localResp.json());
-            } catch (_) {}
-        }
-        try {
-            const localResp = await fetch(`/${workId}.bcm`);
-            if (localResp.ok) return this.loadFromJSON(await localResp.json());
-        } catch (_) {}
         const resp = await fetch(`${API_BASE}/${workId}/source/public`);
         const data = await resp.json();
         const bcmUrl = data.work_urls?.[0];

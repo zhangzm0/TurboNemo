@@ -50,8 +50,8 @@ function buildPixelData(source) {
 function getPixelHitArea(texture) {
     if (!texture) return null;
 
-    // Use uid or fall back to textureCacheIds for identity
-    const key = texture.uid || texture.textureCacheIds?.[0];
+    // PIXI v5: uid is on BaseTexture, not Texture. Try all three.
+    const key = texture.uid || texture.baseTexture?.uid || texture.textureCacheIds?.[0];
     if (!key) return null;
 
     // Check for cached hitArea
@@ -87,6 +87,18 @@ function getPixelHitArea(texture) {
     return hitArea;
 }
 
+/**
+ * Look up cached pixel data for a texture (without building a hitArea).
+ * Returns { pixelData, sw, sh, texW, texH } or null.
+ */
+function getTexturePixelData(texture) {
+    if (!texture) return null;
+    const key = texture.uid || texture.baseTexture?.uid || texture.textureCacheIds?.[0];
+    if (!key) return null;
+    return _pixelCache.get(key) || null;
+}
+
 export {
     getPixelHitArea,
+    getTexturePixelData,
 };

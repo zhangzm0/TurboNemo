@@ -1,4 +1,5 @@
 // ==================== extensions/looks/dialog/print.js ====================
+import { def } from '../../../blocks/def.js';
 import { createPanel, createDialogContainer } from './panel.js';
 
 const NEXT_ICON = new URL('res/new_next_icon.png', import.meta.url).href;
@@ -21,14 +22,17 @@ function getAvatarUrl(actor) {
 }
 
 export const printBlocks = {
-    'show_stage_dialog': {
-        generator(c, b) {
-            const text = c.compileValue(b, 'text');
-            const sprite = c.extractParams(b).sprite || '__self';
+    'show_stage_dialog': def({
+        args0: [
+            { type: 'field_dropdown', name: 'sprite' },
+            { type: 'input_value', name: 'text' },
+        ],
+        js({fields, values, next}) {
+            const sprite = fields.sprite || '__self';
             const lookup = sprite === '__self' ? 'self.name' : `'${sprite}'`;
-            return `    yield* __global__.__printDialog__.show(${lookup}, ${text});\n` + c.compileNext(b);
+            return `    yield* __global__.__printDialog__.show(${lookup}, ${values.text});\n` + next;
         },
-    },
+    }),
 };
 
 export function installPrint(core) {

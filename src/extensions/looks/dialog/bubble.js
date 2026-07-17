@@ -1,4 +1,5 @@
 // ==================== extensions/looks/dialog/bubble.js ====================
+import { def } from '../../../blocks/def.js';
 // Speech/thought bubble that appears above the actor's head (PIXI Graphics)
 // Based on official Nemo runtime implementation
 //   - Bubble stays visible until replaced by next call, actor destroyed, or time expires
@@ -216,32 +217,27 @@ class BubbleManager {
 // self_dialog (对话/思考 文本 持续 X 秒):
 //   Show bubble, wait X seconds (blocking), then hide and continue.
 export const bubbleBlocks = {
-    'self_dialog_wait': {
-        generator(c, b) {
-            const text = c.compileValue(b, 'text');
-            const typeEl = b.querySelector('field[name="type"]');
-            const type = typeEl ? typeEl.textContent.trim() : 'say';
-            return (
-                `    __global__.__bubble__.setText(self, ${text}, '${type}');\n` +
-                `    yield;\n` +
-                c.compileNext(b)
-            );
+    'self_dialog_wait': def({
+        args0: [
+            { type: 'field_dropdown', name: 'type' },
+            { type: 'input_value', name: 'text' },
+        ],
+        js({fields, values, next}) {
+            const type = fields.type || 'say';
+            return `    __global__.__bubble__.setText(self, ${values.text}, '${type}');\n    yield;\n` + next;
         },
-    },
-    'self_dialog': {
-        generator(c, b) {
-            const text = c.compileValue(b, 'text');
-            const typeEl = b.querySelector('field[name="type"]');
-            const type = typeEl ? typeEl.textContent.trim() : 'say';
-            const time = c.compileValue(b, 'time') || '2';
-            return (
-                `    __global__.__bubble__.setText(self, ${text}, '${type}');\n` +
-                `    yield { _yieldType: "wait", frames: Math.ceil(${time} * 60) };\n` +
-                `    __global__.__bubble__.clear(self);\n` +
-                c.compileNext(b)
-            );
+    }),
+    'self_dialog': def({
+        args0: [
+            { type: 'field_dropdown', name: 'type' },
+            { type: 'input_value', name: 'text' },
+            { type: 'input_value', name: 'time' },
+        ],
+        js({fields, values, next}) {
+            const type = fields.type || 'say';
+            return `    __global__.__bubble__.setText(self, ${values.text}, '${type}');\n    yield { _yieldType: "wait", frames: Math.ceil(${values.time} * 60) };\n    __global__.__bubble__.clear(self);\n` + next;
         },
-    },
+    }),
 };
 
 export function installBubble(core) {

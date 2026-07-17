@@ -92,10 +92,8 @@ ${body}
         let code;
         if (!blockDef) {
             code = `0 /* unknown: ${type} */\n` + this.compileNext(blockEl);
-        } else if (blockDef.generator) {
-            code = blockDef.generator(this, blockEl);
         } else {
-            code = this._defaultGenerator(blockEl);
+            code = this._compileStructured(blockDef, blockEl);
         }
         if (this._debug && !blockDef?.isHat) {
             if (fromValue) {
@@ -115,10 +113,46 @@ ${body}
         return code;
     }
 
-    _defaultGenerator(blockEl) {
-        const type = (blockEl.getAttribute('type') || '').trim();
-        const params = this.extractParams(blockEl);
-        return `    yield __core__.host.execute('${type}', ${JSON.stringify(params)});\n` + this.compileNext(blockEl);
+    // Blockly-like: args0 declares inputs, js is a template string or function
+    _compileStructured(def, blockEl) {
+        const ctx = { values: {}, fields: {}, statements: {}, next: '', target: this.target, blockEl };
+        // Phase 1: compile inputs declared in args0
+        for (const arg of def.args0 || []) {
+            if (!arg.name) continue;
+            if (arg.type === 'input_value') {
+                ctx.values[arg.name] = this.compileValue(blockEl, arg.name);
+            } else if (arg.type === 'input_statement') {
+                ctx.statements[arg.name] = this.compileStatement(blockEl, arg.name);
+            } else if (arg.type?.startsWith('field_')) {
+                const el = blockEl.querySelector(`:scope > field[name="${arg.name}"]`);
+                ctx.fields[arg.name] = el?.textContent?.trim?.() ?? '';
+            }
+        }
+        // Phase 2: auto-discover mutation inputs not declared in args0
+        for (const el of blockEl.querySelectorAll(':scope > value')) {
+            const name = el.getAttribute('name');
+            if (name && !(name in ctx.values)) ctx.values[name] = this.compileValue(blockEl, name);
+        }
+        for (const el of blockEl.querySelectorAll(':scope > field')) {
+            const name = el.getAttribute('name');
+            if (name && !(name in ctx.fields)) ctx.fields[name] = el.textContent?.trim?.() ?? '';
+        }
+        for (const el of blockEl.querySelectorAll(':scope > statement')) {
+            const name = el.getAttribute('name');
+            if (name && !(name in ctx.statements)) ctx.statements[name] = this.compileStatement(blockEl, name);
+        }
+        ctx.next = this.compileNext(blockEl);
+
+        if (typeof def.js === 'function') return def.js(ctx);
+
+        if (typeof def.js === 'string') {
+            let code = def.js
+                .replace(/\{\$(\w+)\}/g, (_, k) => ctx.fields[k] ?? '')
+                .replace(/\{(\w+)\}/g, (_, k) => ctx.values[k] ?? '0');
+            if (def.output) return `(${code})`;
+            return `    ${code}\n` + ctx.next;
+        }
+        return '';
     }
 
     compileNext(blockEl) {

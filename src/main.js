@@ -81,7 +81,7 @@ if (debugMode) {
 // 并行加载所有扩展
 const extList = [
     'motion', 'looks', 'operators', 'data', 'sensing',
-    'clone', 'sound', 'midi', 'pen', 'procedures', 'broadcast',
+    'clone', 'sound', 'pen', 'procedures', 'broadcast',
 ];
 
 setLoading('TurboNemo', '正在加载扩展...');

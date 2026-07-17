@@ -1,19 +1,29 @@
 // ==================== sensing/blocks.js ====================
+import { def } from '../../blocks/def.js';
+
 export const sensingBlocks = {
-    'mouse_down': {
-        generator(c, b) {
-            const type = c.extractParams(b).mouse_event_type || 'down';
+    'mouse_down': def({
+        args0: [
+            { type: 'field_dropdown', name: 'mouse_event_type' },
+        ],
+        output: 'Boolean',
+        js(ctx) {
+            const type = ctx.fields.mouse_event_type || 'down';
             if (type === 'down') return `__global__.__mouse__?.down ?? false`;
             if (type === 'up') return `!(__global__.__mouse__?.down ?? true)`;
             if (type === 'click') return `__global__.__mouse__?.click ?? false`;
             return 'false';
         },
-    },
-    'mobile__get': {
-        generator(c, b) {
-            const sf = b.querySelector(':scope > field[name="sprite"]');
-            const target = sf ? sf.textContent.trim() : '__self';
-            const attr = c.extractParams(b).attribute;
+    }),
+    'mobile__get': def({
+        output: 'Number',
+        args0: [
+            { type: 'field_dropdown', name: 'sprite' },
+            { type: 'field_dropdown', name: 'attribute' },
+        ],
+        js({fields}) {
+            const target = fields.sprite || '__self';
+            const attr = fields.attribute;
             const lookup = target === '__self'
                 ? 'self.name'
                 : `(__actors__._idToName?.['${target}'] || '${target}')`;
@@ -29,11 +39,12 @@ export const sensingBlocks = {
             if (attr == '5') return R(`(${actorExpr}?.sprite?.scale?.x ?? ${bgExpr}?.sprite?.scale?.x ?? 1) * 100`);
             return '0';
         },
-    },
-    'self_distance_to': {
-        generator(c, b) {
-            const sf = b.querySelector(':scope > field[name="sprite"]');
-            const target = sf ? sf.textContent.trim() : '__mouse';
+    }),
+    'self_distance_to': def({
+        output: 'Number',
+        args0: [{ type: 'field_dropdown', name: 'sprite' }],
+        js({fields}) {
+            const target = fields.sprite || '__mouse';
             if (target === '__mouse')
                 return `Math.hypot((__global__.__mouse__?.x ?? 0) - self.sprite.x, (__global__.__mouse__?.y ?? 0) + self.sprite.y)`;
             const lookup = target === '__self'
@@ -41,31 +52,45 @@ export const sensingBlocks = {
                 : `(__actors__._idToName?.['${target}'] || '${target}')`;
             return `__actors__.getByName(${lookup})?.sprite ? Math.hypot(__actors__.getByName(${lookup}).sprite.x - self.sprite.x, __actors__.getByName(${lookup}).sprite.y - self.sprite.y) : 0`;
         },
-    },
-    'get_mouse_info': {
-        generator(c, b) {
-            const p = c.extractParams(b).position;
+    }),
+    'get_mouse_info': def({
+        args0: [
+            { type: 'field_dropdown', name: 'position' },
+        ],
+        output: 'Number',
+        js(ctx) {
+            const p = ctx.fields.position;
             return p === 'x' ? `(__global__.__mouse__?.x ?? 0)` : `(__global__.__mouse__?.y ?? 0)`;
         },
-    },
-    'get_stage_info': {
-        generator(c, b) {
-            const i = c.extractParams(b).info;
+    }),
+    'get_stage_info': def({
+        args0: [
+            { type: 'field_dropdown', name: 'info' },
+        ],
+        output: 'Number',
+        js(ctx) {
+            const i = ctx.fields.info;
             return i === 'width' ? `__screens__.width` : `__screens__.height`;
         },
-    },
-    'self_set_role_camp': {
-        generator(c, b) {
-            const camp = c.extractParams(b).role_camp || 'camp_red';
-            return `    self.camp = '${camp}';\n` + c.compileNext(b);
+    }),
+    'self_set_role_camp': def({
+        args0: [
+            { type: 'field_dropdown', name: 'role_camp' },
+        ],
+        js(ctx) {
+            const camp = ctx.fields.role_camp || 'camp_red';
+            return `    self.camp = '${camp}';\n` + ctx.next;
         },
-    },
-    'bump': {
-        generator(c, b) {
-            const f1 = b.querySelector(':scope > field[name="sprite1"]');
-            const f2 = b.querySelector(':scope > field[name="sprite2"]');
-            const rawA = f1?.textContent.trim() || '__self';
-            const rawB = f2?.textContent.trim() || '__edge';
+    }),
+    'bump': def({
+        output: 'Boolean',
+        args0: [
+            { type: 'field_dropdown', name: 'sprite1' },
+            { type: 'field_dropdown', name: 'sprite2' },
+        ],
+        js({fields}) {
+            const rawA = fields.sprite1 || '__self';
+            const rawB = fields.sprite2 || '__edge';
             const isCampA = rawA.startsWith('camp_');
             const isCampB = rawB.startsWith('camp_');
             // Resolve UUID to name at runtime via _idToName (like mobile__get does)
@@ -84,8 +109,8 @@ export const sensingBlocks = {
 
             if (rawB === '__edge') {
                 return isCampA
-                    ? `(function(){ var __actors = ${campCheckA}; for(var __i=0;__i<__actors.length;__i++){ var __a=__actors[__i]; if(!__a?.sprite) continue; var __hw=__screens__.width/2,__hh=__screens__.height/2; if(Math.abs(__a.sprite.x)>__hw||Math.abs(__a.sprite.y)>__hh) return true; } return false; })()`
-                    : `(function(){ var __a = ${actorLookupA}; if(!__a?.sprite) return false; var __hw = __screens__.width/2, __hh = __screens__.height/2; return Math.abs(__a.sprite.x) > __hw || Math.abs(__a.sprite.y) > __hh; })()`;
+                    ? `(function(){ var __actors = ${campCheckA}; for(var __i=0;__i<__actors.length;__i++){ var __a=__actors[__i]; if(!__a?.sprite) continue; var __b=__a.sprite.getBounds(); if(__b.x<=0||__b.x+__b.width>=__screens__.width||__b.y<=0||__b.y+__b.height>=__screens__.height) return true; } return false; })()`
+                    : `(function(){ var __a = ${actorLookupA}; if(!__a?.sprite) return false; var __b = __a.sprite.getBounds(); return __b.x <= 0 || __b.x + __b.width >= __screens__.width || __b.y <= 0 || __b.y + __b.height >= __screens__.height; })()`;
             }
             if (rawB === '__mouse') {
                 if (isCampA) {
@@ -116,38 +141,46 @@ export const sensingBlocks = {
             }
             return `(function(){ var __a=__actors__.getByName(${nameExpr(rawA)}),__b=__actors__.getByName(${nameExpr(rawB)}); if(!__a?.sprite||!__b?.sprite) return false; return __actors__.hitTest(__a.sprite,__b.sprite); })()`;
         },
-    },
-    'bump_into_color': {
-        generator(c, b) {
-            const sf = b.querySelector(':scope > field[name="sprite"]');
-            const target = sf ? sf.textContent.trim() : '__self';
+    }),
+    'bump_into_color': def({
+        output: 'Boolean',
+        args0: [
+            { type: 'field_dropdown', name: 'sprite' },
+            { type: 'field_colour', name: 'color' },
+        ],
+        js({fields}) {
+            const target = fields.sprite || '__self';
+            const hex = (fields.color || '#ffffff').replace(/^#/, '');
             const nameExpr = target === '__self'
                 ? 'self.name'
                 : `(__actors__._idToName?.['${target}'] || '${target}')`;
-            // Color is stored as a field (e.g., "#000000"), same as pen blocks
-            const colorField = b.querySelector(':scope > field[name="color"]');
-            const hex = colorField
-                ? colorField.textContent.trim().replace(/^#/, '')
-                : 'ffffff';
             return `__actors__.checkBumpedColor(${nameExpr}, '${hex}')`;
         },
-    },
-    'self_out_of_boundary': {
-        generator(c, b) {
-            return `(function(){ var __hw = __screens__.width/2, __hh = __screens__.height/2; return Math.abs(self.sprite.x) > __hw || Math.abs(self.sprite.y) > __hh; })()`;
+    }),
+    'self_out_of_boundary': def({
+        output: 'Boolean',
+        js(ctx) {
+            return `(function(){ var __b = self.sprite.getBounds(); return __b.x <= 0 || __b.x + __b.width >= __screens__.width || __b.y <= 0 || __b.y + __b.height >= __screens__.height; })()`;
         },
-    },
-    'check_sence': {
-        generator(c, b) {
-            const idx = c.compileValue(b, 'index');
-            const options = c.extractParams(b).options;
-            const eqCheck = `__screens__.getCurrent()?.name === __screens__.list[${idx}-1]?.name`;
-            return options === 'true' ? eqCheck : `!(${eqCheck})`;
+    }),
+    'check_sence': def({
+        args0: [
+            { type: 'field_dropdown', name: 'options' },
+            { type: 'input_value', name: 'index' },
+        ],
+        output: 'Boolean',
+        js(ctx) {
+            const eqCheck = `__screens__.getCurrent()?.name === __screens__.list[${ctx.values.index}-1]?.name`;
+            return ctx.fields.options === 'true' ? eqCheck : `!(${eqCheck})`;
         },
-    },
-    'get_time': {
-        generator(c, b) {
-            const op = c.extractParams(b).op, now = 'new Date()';
+    }),
+    'get_time': def({
+        args0: [
+            { type: 'field_dropdown', name: 'op' },
+        ],
+        output: 'Number',
+        js(ctx) {
+            const op = ctx.fields.op, now = 'new Date()';
             if (op === 'year') return `${now}.getFullYear()`;
             if (op === 'month') return `${now}.getMonth() + 1`;
             if (op === 'date') return `${now}.getDate()`;
@@ -157,12 +190,16 @@ export const sensingBlocks = {
             if (op === 'second') return `${now}.getSeconds()`;
             return '0';
         },
-    },
-    'mobile__get_voice_volume': { generator(c, b) { return '0'; } },
-    'mobile__enable_voice_detection': { generator(c, b) { return c.compileNext(b) || ''; } },
-    'user_id_get': {
-        generator(c, b) {
-            return `"guest"`;
-        },
-    },
+    }),
+    'mobile__get_voice_volume': def({
+        output: 'Number',
+        js: '0',
+    }),
+    'mobile__enable_voice_detection': def({
+        js({next}) { return next || ''; },
+    }),
+    'user_id_get': def({
+        output: 'String',
+        js: '"guest"',
+    }),
 };

@@ -1,42 +1,64 @@
 // ==================== extensions/sound/index.js ====================
+import { def } from '../../blocks/def.js';
+import { midi } from './midi/index.js';
+
+const STATIC_BASE = 'https://static.codemao.cn/nemo/22';
+const MIDI_BASE = 'https://creation.bcmcdn.com/490';
+
+const soundBlocks = {
+    'sound_get': def({
+        output: 'String',
+        args0: [{ type: 'field_dropdown', name: 'audio' }],
+        js: "'{$audio}'",
+    }),
+    'sound_get_all': def({
+        output: 'String',
+        args0: [{ type: 'field_dropdown', name: 'audio' }],
+        js({fields}) { return `'${fields.audio || '__all_sounds'}'`; },
+    }),
+    'audio__play_audio': def({
+        args0: [{ type: 'input_value', name: 'audio' }],
+        js: '__global__.__sound__.play({audio})',
+    }),
+    'audio__play_audio_and_wait': def({
+        args0: [{ type: 'input_value', name: 'audio' }],
+        js({values, next}) {
+            return `    { const __ev = __global__.__sound__.playAndWait(${values.audio}); if (__ev) yield { _yieldType: "pause", event: __ev }; }\n` + next;
+        },
+    }),
+    'audio__stop_all_audios': def({
+        args0: [{ type: 'input_value', name: 'audio' }],
+        js: '__global__.__sound__.stopAll({audio})',
+    }),
+};
+
 export default {
     name: 'sound',
     version: '1.0.0',
     initData: { sounds: 'audios.sounds' },
-    init(core, data) { this._sounds = data.sounds || {}; },
-    blocks: {
-        // shadow value blocks that return the selected audio ID
-        'sound_get': {
-            generator(c, b) {
-                const id = b.querySelector(':scope > field[name="audio"]')?.textContent.trim() || '';
-                return `'${id}'`;
-            },
-        },
-        'sound_get_all': {
-            generator(c, b) {
-                const id = b.querySelector(':scope > field[name="audio"]')?.textContent.trim() || '__all_sounds';
-                return `'${id}'`;
-            },
-        },
-        'audio__play_audio': {
-            generator(c, b) {
-                const id = c.compileValue(b, 'audio');
-                return `    __global__.__sound__.play(${id});\n` + c.compileNext(b);
-            },
-        },
-        'audio__play_audio_and_wait': {
-            generator(c, b) {
-                const id = c.compileValue(b, 'audio');
-                return `    { const __ev = __global__.__sound__.playAndWait(${id}); if (__ev) yield { _yieldType: "pause", event: __ev }; }\n` + c.compileNext(b);
-            },
-        },
-        'audio__stop_all_audios': {
-            generator(c, b) {
-                const id = c.compileValue(b, 'audio');
-                return `    __global__.__sound__.stopAll(${id});\n` + c.compileNext(b);
-            },
-        },
+
+    get blocks() {
+        return { ...soundBlocks, ...midi.blocks };
     },
+
+    init(core, data) {
+        this._sounds = data.sounds || {};
+
+        const audioResources = [];
+        const midiResources = [];
+        for (const [id, s] of Object.entries(this._sounds)) {
+            if (!s.url) continue;
+            const base = s.ext === 'mid' ? MIDI_BASE : STATIC_BASE;
+            const url = s.url.startsWith('http') ? s.url : `${base}/${s.url}`;
+            if (s.ext === 'mid') midiResources.push({ id, url, static: true });
+            else audioResources.push({ id, url, static: true });
+        }
+        if (midiResources.length > 0) core.assetLoader.registerPack('midi_preload', midiResources);
+        if (audioResources.length > 0) core.assetLoader.registerPack('audio_preload', audioResources);
+
+        midi.init(core, data);
+    },
+
     install(core) {
         core.settings?.define({
             id: 'audio.volume',
@@ -48,18 +70,26 @@ export default {
         });
 
         const self = this;
-        const STATIC_BASE = 'https://static.codemao.cn/nemo/22';
         const activeAudios = [];
+        const midiEngine = midi.install(core, this._sounds);
 
-        function midiEngine() { return core.__midiRef || null; }
+        function resolveAudioUrl(id, s) {
+            const buf = core.assetLoader.getPackData('audio_preload', id);
+            if (buf) {
+                const blob = new Blob([buf]);
+                return URL.createObjectURL(blob);
+            }
+            const url = s.url;
+            return url?.startsWith('http') ? url : `${STATIC_BASE}/${url}`;
+        }
 
         const soundApi = {
             play(id) {
                 if (Array.isArray(id)) return;
                 const s = self._sounds[id];
-                if (s?.ext === 'mid') { midiEngine()?.playMidi(id); return; }
+                if (s?.ext === 'mid') { midiEngine.playMidi(id); return; }
                 if (!s) return;
-                const url = s.url?.startsWith('http') ? s.url : `${STATIC_BASE}/${s.url}`;
+                const url = resolveAudioUrl(id, s);
                 const audio = new Audio(url);
                 audio.play().catch(() => {});
                 audio.onended = () => {
@@ -72,15 +102,12 @@ export default {
                 if (Array.isArray(id)) return null;
                 const s = self._sounds[id];
                 if (s?.ext === 'mid') {
-                    const m = midiEngine();
-                    if (m) {
-                        const ev = `midi:ended:${id}:${Date.now()}`;
-                        m.playMidi(id, null, null, null, () => core.eventBus.emit(ev));
-                        return ev;
-                    }
+                    const ev = `midi:ended:${id}:${Date.now()}`;
+                    midiEngine.playMidi(id, null, null, null, () => core.eventBus.emit(ev));
+                    return ev;
                 }
                 if (!s) return null;
-                const url = s.url?.startsWith('http') ? s.url : `${STATIC_BASE}/${s.url}`;
+                const url = resolveAudioUrl(id, s);
                 const audio = new Audio(url);
                 audio.play().catch(() => {});
                 const eventName = `audio:ended:${id}:${Date.now()}`;
@@ -97,7 +124,7 @@ export default {
                 if (!audioId || audioId === '__all_sounds') {
                     activeAudios.forEach(a => { a.pause(); a.currentTime = 0; });
                     activeAudios.length = 0;
-                    midiEngine()?.stopAll();
+                    midiEngine.stopAll();
                     return;
                 }
                 activeAudios.forEach((a, i) => {

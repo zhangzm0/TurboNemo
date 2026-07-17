@@ -1,4 +1,6 @@
 // src/extensions/pen/index.js
+import { def } from '../../blocks/def.js';
+
 function clamp(value, min, max) {
     if (value < min) return min;
     if (value > max) return max;
@@ -272,147 +274,116 @@ export default {
     name: "pen",
     version: "1.0.0",
     blocks: {
-        self_pen_down: {
-            generator(c, b) {
-                if (isScreen(c)) return c.compileNext(b) || "";
-                return `    self._brush.penDown();\n` + c.compileNext(b);
+        'self_pen_down': def({
+            js({next, target}) {
+                if (target === 'screen') return next;
+                return `    self._brush.penDown();\n` + next;
             },
-        },
-        self_pen_up: {
-            generator(c, b) {
-                if (isScreen(c)) return c.compileNext(b) || "";
-                return `    self._brush.penUp();\n` + c.compileNext(b);
+        }),
+        'self_pen_up': def({
+            js({next, target}) {
+                if (target === 'screen') return next;
+                return `    self._brush.penUp();\n` + next;
             },
-        },
-        clear_drawing: {
-            generator(c, b) {
-                if (isScreen(c)) return c.compileNext(b) || "";
-                return `    self._brush.clear();\n` + c.compileNext(b);
+        }),
+        'clear_drawing': def({
+            js({next, target}) {
+                if (target === 'screen') return next;
+                return `    self._brush.clear();\n` + next;
             },
-        },
-        self_set_pen_size: {
-            generator(c, b) {
-                if (isScreen(c)) return c.compileNext(b) || "";
-                const size = c.compileValue(b, "size");
-                return `    self._brush.setSize(${size});\n` + c.compileNext(b);
+        }),
+        'self_set_pen_size': def({
+            args0: [{ type: 'input_value', name: 'size' }],
+            js({values, next, target}) {
+                if (target === 'screen') return next;
+                return `    self._brush.setSize(${values.size});\n` + next;
             },
-        },
-        self_change_pen_size: {
-            generator(c, b) {
-                if (isScreen(c)) return c.compileNext(b) || "";
-                const steps = c.compileValue(b, "steps");
-                return (
-                    `    self._brush.changeSize(${steps});\n` + c.compileNext(b)
-                );
+        }),
+        'self_change_pen_size': def({
+            args0: [{ type: 'input_value', name: 'steps' }],
+            js({values, next, target}) {
+                if (target === 'screen') return next;
+                return `    self._brush.changeSize(${values.steps});\n` + next;
             },
-        },
-        self_set_pen_color: {
-            generator(c, b) {
-                if (isScreen(c)) return c.compileNext(b) || "";
-                const color = (
-                    b
-                        .querySelector(':scope > field[name="color"]')
-                        ?.textContent.trim() || "#cc66cc"
-                ).slice(1);
-                return (
-                    `    self._brush.setColor('${color}');\n` + c.compileNext(b)
-                );
+        }),
+        'self_set_pen_color': def({
+            args0: [{ type: 'field_dropdown', name: 'color' }],
+            js({fields, next, target}) {
+                if (target === 'screen') return next;
+                const color = (fields.color || '#cc66cc').slice(1);
+                return `    self._brush.setColor('${color}');\n` + next;
             },
-        },
-        self_set_pen_color_property: {
-            generator(c, b) {
-                if (isScreen(c)) return c.compileNext(b) || "";
-                const type = c.extractParams(b).scope;
-                const val = c.compileValue(b, "val");
-                if (type === "hue")
-                    return (
-                        `    self._brush.setHue(${val});\n` + c.compileNext(b)
-                    );
-                if (type === "saturation")
-                    return (
-                        `    self._brush.setSaturation((${val}) / 100);\n` +
-                        c.compileNext(b)
-                    );
-                if (type === "brightness")
-                    return (
-                        `    self._brush.setBrightness((${val}) / 100);\n` +
-                        c.compileNext(b)
-                    );
-                if (type === "alpha")
-                    return (
-                        `    self._brush.setAlpha((100 - (${val})) / 100);\n` +
-                        c.compileNext(b)
-                    );
-                return c.compileNext(b) || "";
+        }),
+        'self_set_pen_color_property': def({
+            args0: [
+                { type: 'field_dropdown', name: 'scope' },
+                { type: 'input_value', name: 'val' },
+            ],
+            js({fields, values, next, target}) {
+                if (target === 'screen') return next;
+                const type = fields.scope;
+                if (type === 'hue')
+                    return `    self._brush.setHue(${values.val});\n` + next;
+                if (type === 'saturation')
+                    return `    self._brush.setSaturation((${values.val}) / 100);\n` + next;
+                if (type === 'brightness')
+                    return `    self._brush.setBrightness((${values.val}) / 100);\n` + next;
+                if (type === 'alpha')
+                    return `    self._brush.setAlpha((100 - (${values.val})) / 100);\n` + next;
+                return next;
             },
-        },
-        self_change_pen_color_property: {
-            generator(c, b) {
-                if (isScreen(c)) return c.compileNext(b) || "";
-                const type = c.extractParams(b).scope;
-                const steps = c.compileValue(b, "steps");
-                if (type === "hue")
-                    return (
-                        `    self._brush.changeHue(${steps});\n` +
-                        c.compileNext(b)
-                    );
-                if (type === "saturation")
-                    return (
-                        `    self._brush.changeSaturation((${steps}) / 100);\n` +
-                        c.compileNext(b)
-                    );
-                if (type === "brightness")
-                    return (
-                        `    self._brush.changeBrightness((${steps}) / 100);\n` +
-                        c.compileNext(b)
-                    );
-                if (type === "alpha")
-                    return (
-                        `    self._brush.changeAlpha(-(${steps}) / 100);\n` +
-                        c.compileNext(b)
-                    );
-                return c.compileNext(b) || "";
+        }),
+        'self_change_pen_color_property': def({
+            args0: [
+                { type: 'field_dropdown', name: 'scope' },
+                { type: 'input_value', name: 'steps' },
+            ],
+            js({fields, values, next, target}) {
+                if (target === 'screen') return next;
+                const type = fields.scope;
+                if (type === 'hue')
+                    return `    self._brush.changeHue(${values.steps});\n` + next;
+                if (type === 'saturation')
+                    return `    self._brush.changeSaturation((${values.steps}) / 100);\n` + next;
+                if (type === 'brightness')
+                    return `    self._brush.changeBrightness((${values.steps}) / 100);\n` + next;
+                if (type === 'alpha')
+                    return `    self._brush.changeAlpha(-(${values.steps}) / 100);\n` + next;
+                return next;
             },
-        },
-        set_fill_path: {
-            generator(c, b) {
-                if (isScreen(c)) return c.compileNext(b) || "";
-                const point = c.extractParams(b).point;
-                if (point === "start") {
-                    return (
-                        `    self._brush.fillStart(self.sprite.x, self.sprite.y);\n` +
-                        c.compileNext(b)
-                    );
+        }),
+        'set_fill_path': def({
+            args0: [{ type: 'field_dropdown', name: 'point' }],
+            js({fields, next, target}) {
+                if (target === 'screen') return next;
+                if (fields.point === 'start') {
+                    return `    self._brush.fillStart(self.sprite.x, self.sprite.y);\n` + next;
                 }
-                return `    self._brush.fillEnd();\n` + c.compileNext(b);
+                return `    self._brush.fillEnd();\n` + next;
             },
-        },
-        set_fill_style: {
-            generator(c, b) {
-                if (isScreen(c)) return c.compileNext(b) || "";
-                const color = (
-                    b
-                        .querySelector(':scope > field[name="style"]')
-                        ?.textContent.trim() || "#cc66cc"
-                ).slice(1);
-                return (
-                    `    self._brush.setFillColor('${color}');\n` +
-                    c.compileNext(b)
-                );
+        }),
+        'set_fill_style': def({
+            args0: [{ type: 'field_dropdown', name: 'style' }],
+            js({fields, next, target}) {
+                if (target === 'screen') return next;
+                const color = (fields.style || '#cc66cc').slice(1);
+                return `    self._brush.setFillColor('${color}');\n` + next;
             },
-        },
-        stamp: {
-            generator(c, b) {
-                if (isScreen(c)) return c.compileNext(b) || "";
-                const text = c.compileValue(b, "TEXT") || "''";
-                const size = c.compileValue(b, "SIZE") || "24";
-                const align = b.querySelector('field[name="ALIGN"]')?.textContent.trim() || 'CENTER';
-                return (
-                    `    self._brush.stamp(${text}, ${size}, '${align}');\n` +
-                    c.compileNext(b)
-                );
+        }),
+        'stamp': def({
+            args0: [
+                { type: 'input_value', name: 'TEXT' },
+                { type: 'input_value', name: 'SIZE' },
+                { type: 'field_dropdown', name: 'ALIGN' },
+            ],
+            js({values, fields, next, target}) {
+                if (target === 'screen') return next;
+                const text = values.TEXT || "''";
+                const size = values.SIZE || '24';
+                const align = fields.ALIGN || 'CENTER';
+                return `    self._brush.stamp(${text}, ${size}, '${align}');\n` + next;
             },
-        },
+        }),
     },
 
     install(core) {

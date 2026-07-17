@@ -1,32 +1,37 @@
 // src/blocks/base.js
+import { def } from './def.js';
+
 export const baseBlocks = {
-    'math_number': {
-        generator(c, b) {
-            // Nemo 数学框支持两种字段名：NUM（数值）和 TEXT（文本/变量名）
-            let f = b.querySelector('field[name="NUM"]');
-            let v = f ? f.textContent.trim() : '';
+    'math_number': def({
+        args0: [
+            { type: 'field_input', name: 'NUM', text: '0' },
+            { type: 'field_input', name: 'TEXT', text: '' },
+        ],
+        output: 'Number',
+        js({ fields }) {
+            let v = fields.NUM;
             let fromTEXT = false;
             if (v === '') {
-                // 检查 TEXT 字段（过程参数默认值场景）
-                f = b.querySelector('field[name="TEXT"]');
-                if (f) { v = f.textContent.trim(); fromTEXT = true; }
+                v = fields.TEXT;
+                fromTEXT = true;
             }
             if (!v) return '0';
             const n = Number(v);
-            if (isNaN(n) || v === '') {
-                // NUM 字段非数字 → 列表 "全部" 语义
+            if (isNaN(n)) {
                 if (!fromTEXT) return '[]';
-                // TEXT 字段非数字 → 过程参数默认字符串值
                 return `'${v.replace(/'/g, "\\'").replace(/\n/g, '\\n')}'`;
             }
-            return n;
+            return String(n);
         },
-    },
-    'text': {
-        generator(c, b) {
-            const f = b.querySelector('field[name="TEXT"]');
-            const v = f ? f.textContent.trim() : '';
+    }),
+    'text': def({
+        args0: [
+            { type: 'field_input', name: 'TEXT', text: '' },
+        ],
+        output: 'String',
+        js({ fields }) {
+            const v = fields.TEXT;
             return `'${v.replace(/'/g, "\\'").replace(/\n/g, '\\n')}'`;
         },
-    },
+    }),
 };

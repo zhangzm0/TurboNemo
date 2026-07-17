@@ -1,48 +1,72 @@
-// ==================== data/vars/blocks.js ====================
+import { def } from '../../../blocks/def.js';
+
 export const varBlocks = {
-    'variables_get': {
-        generator(c, b) {
-            const id = b.querySelector(':scope > field[name="VAR"]')?.textContent.trim() || '';
+    'variables_get': def({
+        args0: [
+            { type: 'field_dropdown', name: 'VAR' },
+        ],
+        output: 'Number',
+        js({ fields }) {
+            const id = fields.VAR.replace(/'/g, "\\'");
             return `(self._vars['${id}']?.value ?? 0)`;
         },
-    },
-    'variables_set': {
-        generator(c, b) {
-            const id = b.querySelector(':scope > field[name="VAR"]')?.textContent.trim() || '';
-            const val = c.compileValue(b, 'VALUE');
-            return `    if (!self._vars['${id}']) self._vars['${id}'] = { value: 0 };\n    self._vars['${id}'].value = ${val};\n` + c.compileNext(b);
+    }),
+    'variables_set': def({
+        args0: [
+            { type: 'field_dropdown', name: 'VAR' },
+            { type: 'input_value', name: 'VALUE' },
+        ],
+        js({ fields, values, next }) {
+            const id = fields.VAR.replace(/'/g, "\\'");
+            return `    if (!self._vars['${id}']) self._vars['${id}'] = { value: 0 };\n    self._vars['${id}'].value = ${values.VALUE};\n` + next;
         },
-    },
-    'change_variable': {
-        generator(c, b) {
-            const id = b.querySelector(':scope > field[name="VAR"]')?.textContent.trim()
-                    || b.querySelector(':scope > field[name="valname"]')?.textContent.trim()
-                    || '';
-            const method = b.querySelector(':scope > field[name="method"]')?.textContent.trim() || 'increase';
-            let val = c.compileValue(b, 'n') || c.compileValue(b, 'VALUE') || '0';
+    }),
+    'change_variable': def({
+        args0: [
+            { type: 'field_dropdown', name: 'VAR' },
+            { type: 'field_dropdown', name: 'valname' },
+            { type: 'field_dropdown', name: 'method' },
+            { type: 'input_value', name: 'n' },
+            { type: 'input_value', name: 'VALUE' },
+        ],
+        js({ fields, values, next }) {
+            const id = (fields.VAR || fields.valname || '').replace(/'/g, "\\'");
+            const method = fields.method || 'increase';
+            let val = values.n || values.VALUE || '0';
             if (method === 'decrease') val = `-(${val})`;
-            return `    if (!self._vars['${id}']) self._vars['${id}'] = { value: 0 };\n    self._vars['${id}'].value += ${val};\n` + c.compileNext(b);
+            return `    if (!self._vars['${id}']) self._vars['${id}'] = { value: 0 };\n    self._vars['${id}'].value += ${val};\n` + next;
         },
-    },
-    'show_hide_variable': {
-        generator(c, b) {
-            const func = c.extractParams(b).FUNC;
-            const id = b.querySelector(':scope > field[name="VAR"]')?.textContent.trim() || '';
-            if (func === 'show') return `    __varDisplay__.show('${id}');\n` + c.compileNext(b);
-            return `    __varDisplay__.hide('${id}');\n` + c.compileNext(b);
+    }),
+    'show_hide_variable': def({
+        args0: [
+            { type: 'field_dropdown', name: 'FUNC' },
+            { type: 'field_dropdown', name: 'VAR' },
+        ],
+        js({ fields, next }) {
+            const func = fields.FUNC;
+            const id = fields.VAR.replace(/'/g, "\\'");
+            if (func === 'show') return `    __varDisplay__.show('${id}');\n` + next;
+            return `    __varDisplay__.hide('${id}');\n` + next;
         },
-    },
-    'cloud_variables_get': {
-        generator(c, b) {
-            const id = b.querySelector(':scope > field[name="VAR"]')?.textContent.trim() || '';
+    }),
+    'cloud_variables_get': def({
+        args0: [
+            { type: 'field_dropdown', name: 'VAR' },
+        ],
+        output: 'Number',
+        js({ fields }) {
+            const id = fields.VAR.replace(/'/g, "\\'");
             return `(self._vars['${id}']?.value ?? 0)`;
         },
-    },
-    'cloud_variables_set': {
-        generator(c, b) {
-            const id = b.querySelector(':scope > field[name="VAR"]')?.textContent.trim() || '';
-            const val = c.compileValue(b, 'VALUE');
-            return `    if (!self._vars['${id}']) self._vars['${id}'] = { value: 0 };\n    self._vars['${id}'].value = ${val};\n` + c.compileNext(b);
+    }),
+    'cloud_variables_set': def({
+        args0: [
+            { type: 'field_dropdown', name: 'VAR' },
+            { type: 'input_value', name: 'VALUE' },
+        ],
+        js({ fields, values, next }) {
+            const id = fields.VAR.replace(/'/g, "\\'");
+            return `    if (!self._vars['${id}']) self._vars['${id}'] = { value: 0 };\n    self._vars['${id}'].value = ${values.VALUE};\n` + next;
         },
-    },
+    }),
 };

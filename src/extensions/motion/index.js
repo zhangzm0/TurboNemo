@@ -1,61 +1,64 @@
-// src/extensions/motion/index.js
+import { def } from '../../blocks/def.js';
+
 export default {
     name: 'motion',
     version: '1.0.0',
     blocks: {
-        'self_move_to': {
-            generator(c, b) {
-                const x = c.compileValue(b, 'x'), y = c.compileValue(b, 'y');
-                return `    self.__moveTo(${x}, -(${y}));\n` + c.compileNext(b);
+        'self_go_forward': def({
+            args0: [{ type: 'input_value', name: 'steps' }],
+            js({values, next}) {
+                const s = values.steps;
+                return `    { const __r = self.sprite.rotation; const __dx = Math.cos(-__r) * ${s}, __dy = -Math.sin(-__r) * ${s}; if (self.sprite.tilePosition) { self.__addX(__dx); self.__addY(__dy); } else { self.__moveTo(self.sprite.x + __dx, self.sprite.y + __dy); } }\n` + next;
             },
-        },
-        'self_go_forward': {
-            generator(c, b) {
-                const s = c.compileValue(b, 'steps');
-                return `    { const __r = self.sprite.rotation; const __dx = Math.cos(-__r) * ${s}, __dy = -Math.sin(-__r) * ${s}; if (self.sprite.tilePosition) { self.__addX(__dx); self.__addY(__dy); } else { self.__moveTo(self.sprite.x + __dx, self.sprite.y + __dy); } }\n` + c.compileNext(b);
-            },
-        },
-        'self_rotate': {
-            generator(c, b) {
-                const d = c.compileValue(b, 'degrees');
-                return `    self.sprite.rotation -= ${d} * Math.PI / 180;\n` + c.compileNext(b);
-            },
-        },
-        'self_set_position_x': {
-            generator(c, b) { return `    self.__setX(${c.compileValue(b, 'value')});\n` + c.compileNext(b); },
-        },
-        'self_set_position_y': {
-            generator(c, b) { return `    self.__setY(-(${c.compileValue(b, 'value')}));\n` + c.compileNext(b); },
-        },
-        'self_change_position_x': {
-            generator(c, b) { return `    self.__addX(${c.compileValue(b, 'value')});\n` + c.compileNext(b); },
-        },
-        'self_change_position_y': {
-            generator(c, b) { return `    self.__addY(-(${c.compileValue(b, 'value')}));\n` + c.compileNext(b); },
-        },
-        'self_point_towards': {
-            generator(c, b) {
-                const d = c.compileValue(b, 'degrees');
-                return `    self.sprite.rotation = -(${d}) * Math.PI / 180;\n` + c.compileNext(b);
-            },
-        },
-        'self_bounce_off_edge': {
-            generator(c, b) {
-                return `\
-    { const __hw = __screens__.width / 2, __hh = __screens__.height / 2;
+        }),
+        'self_move_to': def({
+            args0: [
+                { type: 'input_value', name: 'x' },
+                { type: 'input_value', name: 'y' },
+            ],
+            js: 'self.__moveTo({x}, -({y}))',
+        }),
+        'self_rotate': def({
+            args0: [{ type: 'input_value', name: 'degrees' }],
+            js: 'self.sprite.rotation -= {degrees} * Math.PI / 180',
+        }),
+        'self_set_position_x': def({
+            args0: [{ type: 'input_value', name: 'value' }],
+            js: 'self.__setX({value})',
+        }),
+        'self_set_position_y': def({
+            args0: [{ type: 'input_value', name: 'value' }],
+            js: 'self.__setY(-({value}))',
+        }),
+        'self_change_position_x': def({
+            args0: [{ type: 'input_value', name: 'value' }],
+            js: 'self.__addX({value})',
+        }),
+        'self_change_position_y': def({
+            args0: [{ type: 'input_value', name: 'value' }],
+            js: 'self.__addY(-({value}))',
+        }),
+        'self_point_towards': def({
+            args0: [{ type: 'input_value', name: 'degrees' }],
+            js: 'self.sprite.rotation = -({degrees}) * Math.PI / 180',
+        }),
+        'self_bounce_off_edge': def({
+            js: `{ const __hw = __screens__.width / 2, __hh = __screens__.height / 2;
     if (Math.abs(self.sprite.x) > __hw || Math.abs(self.sprite.y) > __hh) {
         self.sprite.rotation = -(Math.PI - self.sprite.rotation);
         self.__moveTo(Math.max(-__hw, Math.min(__hw, self.sprite.x)), Math.max(-__hh, Math.min(__hh, self.sprite.y)));
-    } }
-` + c.compileNext(b);
-            },
-        },
-        'self_rotate_around': {
-            generator(c, b) {
-                const target = c.extractParams(b).sprite || '__self';
-                const degrees = c.compileValue(b, 'degrees');
+    } }`,
+        }),
+        'self_rotate_around': def({
+            args0: [
+                { type: 'field_dropdown', name: 'sprite' },
+                { type: 'input_value', name: 'degrees' },
+            ],
+            js({fields, values, next}) {
+                const target = fields.sprite || '__self';
+                const degrees = values.degrees;
                 if (target === '__self') {
-                    return `    self.sprite.rotation -= ${degrees} * Math.PI / 180;\n` + c.compileNext(b);
+                    return `    self.sprite.rotation -= ${degrees} * Math.PI / 180;\n` + next;
                 }
                 const lookup = `(__actors__._idToName?.['${target}'] || '${target}')`;
                 const rad = `${degrees} * Math.PI / 180`;
@@ -73,52 +76,52 @@ export default {
         self.sprite.rotation -= ${rad};
         __core__.eventBus.emit('actor:moved:' + self.name, self);
     } }
-` + c.compileNext(b);
+` + next;
             },
-        },
-        'self_face_to': {
-            generator(c, b) {
-                const target = c.extractParams(b).sprite || '__mouse';
+        }),
+        'self_face_to': def({
+            args0: [{ type: 'field_dropdown', name: 'sprite' }],
+            js({fields, next}) {
+                const target = fields.sprite || '__mouse';
                 if (target === '__mouse') {
                     return `\
     { const __m = __global__.__mouse__; const __dx = __m.x - self.sprite.x; const __dy = __m.y + self.sprite.y;
     self.sprite.rotation = Math.atan2(-__dy, __dx); }
-` + c.compileNext(b);
+` + next;
                 }
                 const lookup = `(__actors__._idToName?.['${target}'] || '${target}')`;
                 return `\
     { const __t = __actors__.getByName(${lookup});
     if (__t) { const __dx = __t.sprite.x - self.sprite.x; const __dy = __t.sprite.y - self.sprite.y; self.sprite.rotation = Math.atan2(__dy, __dx); } }
-` + c.compileNext(b);
+` + next;
             },
-        },
-        'self_set_rotation_type': {
-            generator(c, b) {
-                const type = c.extractParams(b).rotation_type || '2';
-                return `    self.rotationType = '${type}';\n` + c.compileNext(b);
-            },
-        },
-        'self_glide_to': {
-            generator(c, b) {
-                const t = c.compileValue(b, 'time');
-                const x = c.compileValue(b, 'x');
-                const y = c.compileValue(b, 'y');
-                return `    yield* self.__glideTo(${t}, ${x}, -(${y}));\n` + c.compileNext(b);
-            },
-        },
-        'self_move_specify': {
-            generator(c, b) {
-                const target = c.extractParams(b).target;
+        }),
+        'self_set_rotation_type': def({
+            args0: [{ type: 'field_dropdown', name: 'rotation_type' }],
+            js: "self.rotationType = '{$rotation_type}'",
+        }),
+        'self_glide_to': def({
+            args0: [
+                { type: 'input_value', name: 'time' },
+                { type: 'input_value', name: 'x' },
+                { type: 'input_value', name: 'y' },
+            ],
+            js: 'yield* self.__glideTo({time}, {x}, -({y}))',
+        }),
+        'self_move_specify': def({
+            args0: [{ type: 'field_dropdown', name: 'target' }],
+            js({fields, next}) {
+                const target = fields.target;
                 if (target === '__pointer') {
-                    return `    { const __m = __global__.__mouse__; self.__moveTo(__m.x, -__m.y); }\n` + c.compileNext(b);
+                    return `    { const __m = __global__.__mouse__; self.__moveTo(__m.x, -__m.y); }\n` + next;
                 }
                 if (target === '__random') {
-                    return `    { self.__moveTo((Math.random() - 0.5) * __screens__.width, (Math.random() - 0.5) * __screens__.height); }\n` + c.compileNext(b);
+                    return `    { self.__moveTo((Math.random() - 0.5) * __screens__.width, (Math.random() - 0.5) * __screens__.height); }\n` + next;
                 }
                 const lookup = `(__actors__._idToName?.['${target}'] || '${target}')`;
-                return `    { const __t = __actors__.getByName(${lookup}); if (__t) { self.__moveTo(__t.sprite.x, __t.sprite.y); } }\n` + c.compileNext(b);
+                return `    { const __t = __actors__.getByName(${lookup}); if (__t) { self.__moveTo(__t.sprite.x, __t.sprite.y); } }\n` + next;
             },
-        },
+        }),
     },
     install(core) {
         core.selfHook('__moveTo', (actor) => (x, y) => {

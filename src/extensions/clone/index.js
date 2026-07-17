@@ -1,10 +1,12 @@
 // src/extensions/clone/index.js
+import { def } from '../../blocks/def.js';
+
 export default {
     name: 'clone',
     version: '1.0.0',
     blocks: {
-        'mirror': {
-            generator(c, b) {
+        'mirror': def({
+            js({next}) {
                 return `\
             {
                 const __c = __actors__.cloneActor(self.name);
@@ -19,50 +21,53 @@ export default {
                     }
                 }
             }
-        ` + c.compileNext(b);
+        ` + next;
             },
-        },
-        'dispose': {
-            generator(c, b) { return `    if (self.isClone) { __actors__.removeClone(self.name); }\n` + c.compileNext(b); },
-        },
-        'start_as_a_mirror': {
+        }),
+        'dispose': def({ js: 'if (self.isClone) { __actors__.removeClone(self.name) }' }),
+        'start_as_a_mirror': def({
             isHat: true,
-            generator(c, b) {
-                const body = c.compileStatement(b, 'DO');
+            args0: [{ type: 'input_statement', name: 'DO' }],
+            js(ctx) {
+                const body = ctx.statements.DO;
                 if (!body) return `    // start_as_a_mirror (empty)\n`;
                 return `\
     // start_as_a_mirror
     if (!self.isClone) return;
 ${body}`;
             },
-        },
-        'get_current_clone_index': { generator(c, b) { return `__actors__.getCloneIndex(self.name)`; } },
-        'get_clone_num': {
-            generator(c, b) {
-                const sf = b.querySelector('field[name="sprite"]');
-                const raw = sf?.textContent.trim() || '__self';
+        }),
+        'get_current_clone_index': def({ output: 'Number', js: '__actors__.getCloneIndex(self.name)' }),
+        'get_clone_num': def({
+            args0: [{ type: 'field_dropdown', name: 'sprite' }],
+            js(ctx) {
+                const raw = ctx.fields.sprite || '__self';
                 const name = raw === '__self' ? '(self._protoName || self.name)' : `(__actors__._idToName?.['${raw}'] || '${raw}')`;
                 return `__actors__.getCloneCount(${name})`;
             },
-        },
-        'get_clone_index_property': {
-            generator(c, b) {
-                const sf = b.querySelector('field[name="sprite"]');
-                const raw = sf?.textContent.trim() || '__self';
+        }),
+        'get_clone_index_property': def({
+            args0: [
+                { type: 'field_dropdown', name: 'sprite' },
+                { type: 'field_dropdown', name: 'attribute' },
+                { type: 'input_value', name: 'index' },
+            ],
+            js({fields, values}) {
+                const raw = fields.sprite || '__self';
                 const name = raw === '__self' ? '(self._protoName || self.name)' : `(__actors__._idToName?.['${raw}'] || '${raw}')`;
-                const idx = c.compileValue(b, 'index');
-                const attr = c.extractParams(b).attribute;
+                const idx = values.index;
+                const attr = fields.attribute;
                 // 对应官方 EntityProperty 枚举: 0=X, 1=Y, 2=STYLE_INDEX, 3=ROTATION, 5=SIZE
                 const m = {
-                    0: `__actors__.getCloneByIndex(${name}, ${idx})?.sprite?.x ?? 0`,
-                    1: `-(__actors__.getCloneByIndex(${name}, ${idx})?.sprite?.y ?? 0)`,
-                    2: `__actors__.getCloneByIndex(${name}, ${idx})?.currentCostume ?? 0`,
-                    3: `-(__actors__.getCloneByIndex(${name}, ${idx})?.sprite?.rotation ?? 0) * 180 / Math.PI`,
-                    5: `(__actors__.getCloneByIndex(${name}, ${idx})?.sprite?.scale?.x ?? 1) * 100`,
+                    '0': `__actors__.getCloneByIndex(${name}, ${idx})?.sprite?.x ?? 0`,
+                    '1': `-(__actors__.getCloneByIndex(${name}, ${idx})?.sprite?.y ?? 0)`,
+                    '2': `__actors__.getCloneByIndex(${name}, ${idx})?.currentCostume ?? 0`,
+                    '3': `-(__actors__.getCloneByIndex(${name}, ${idx})?.sprite?.rotation ?? 0) * 180 / Math.PI`,
+                    '5': `(__actors__.getCloneByIndex(${name}, ${idx})?.sprite?.scale?.x ?? 1) * 100`,
                 };
                 return m[attr] || '0';
             },
-        },
+        }),
     },
     install(core) {
         core.actorManager._stopCloneTasks = (cloneName) => {
