@@ -1,7 +1,7 @@
 // src/core/screen-manager.js
 import { Screen } from './screen.js';
 import { Background } from './background.js';
-import { Transition } from './transition.js';
+import { Transition } from '../render/transition.js';
 
 class ScreenManager {
     constructor(stage) {

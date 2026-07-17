@@ -1,13 +1,13 @@
 // src/core/nemo-player.js
-import { EventBus } from "./event-bus.js";
-import { Registry } from "./registry.js";
-import { Scheduler } from "./scheduler.js";
-import { Compiler } from "./compiler.js";
-import { AssetLoader } from "./asset-loader.js";
-import { Stage } from "./stage.js";
-import { ScreenManager } from "./screen-manager.js";
-import { ActorManager } from "./actor-manager.js";
-import { SettingsManager } from "./settings-manager.js";
+import { EventBus } from "./system/event-bus.js";
+import { Registry } from "./engine/registry.js";
+import { Scheduler } from "./engine/scheduler.js";
+import { Compiler } from "./engine/compiler.js";
+import { AssetLoader } from "./system/asset-loader.js";
+import { Stage } from "./render/stage.js";
+import { ScreenManager } from "./entities/screen-manager.js";
+import { ActorManager } from "./entities/actor-manager.js";
+import { SettingsManager } from "./system/settings-manager.js";
 import { baseBlocks } from "../blocks/base.js";
 import { eventBlocks } from "../blocks/events.js";
 import { controlBlocks } from "../blocks/control.js";

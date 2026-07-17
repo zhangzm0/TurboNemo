@@ -1,6 +1,6 @@
 // src/core/actor-manager.js
 import { Actor } from './actor.js';
-import { getTexturePixelData } from './hitarea.js';
+import { getTexturePixelData } from '../render/hitarea.js';
 
 const _point = new PIXI.Point();  // reusable temp point for hitTest loop
 const MIN_PIXELS_FOR_COLLISION = 5;

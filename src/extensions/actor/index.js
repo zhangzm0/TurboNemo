@@ -1,5 +1,5 @@
 // src/extensions/actor/index.js
-import { getPixelHitArea } from '../../core/hitarea.js';
+import { getPixelHitArea } from '../../core/render/hitarea.js';
 
 export default {
     name: 'actor',
