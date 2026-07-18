@@ -5,7 +5,10 @@ class Scheduler {
         this._running = [];
         this._all = {};
         this._currentTaskId = null;
+        this._disposed = false;
     }
+
+    dispose() { this._disposed = true; this._all = {}; this._running = []; }
 
     createTask(taskId, entityName, restartInfo) {
         const task = { taskId, entityName, gen: null, _genStack: [], state: 'pending', waitFrames: 0, _params: null, _restart: restartInfo || null, _eventWait: false };
@@ -141,7 +144,7 @@ class Scheduler {
 
             // frame / wait / pause 挂起回 tick 循环
             if (value?._yieldType === 'frame') return;
-            if (value?._yieldType === 'wait') { task.waitFrames = Math.max(1, value.frames); return; }
+            if (value?._yieldType === 'wait') { task.waitFrames = Math.max(0, value.frames); return; }
             if (value?._yieldType === 'pause') {
                 task.state = 'paused';
                 this._running = this._running.filter(t => t.taskId !== task.taskId);
@@ -154,6 +157,15 @@ class Scheduler {
                         this._running.push(task);
                     });
                 }
+                return;
+            }
+            if (value instanceof Promise) {
+                task.state = 'paused';
+                this._running = this._running.filter(t => t.taskId !== task.taskId);
+                value.then(
+                    r => { if (this._disposed || this._all[task.taskId] !== task) return; task._params = r; task.state = 'running'; this._running.push(task); },
+                    () => { if (this._disposed || this._all[task.taskId] !== task) return; task.state = 'running'; this._running.push(task); },
+                );
                 return;
             }
 

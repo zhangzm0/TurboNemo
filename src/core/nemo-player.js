@@ -308,6 +308,7 @@ class NemoPlayer {
         if (onRestart) this.eventBus._listeners['tn:restart'] = onRestart;
 
         // 重置管理器（保持 hook 引用连通）
+        if (this.scheduler) this.scheduler.dispose();
         this.scheduler = new Scheduler(this.eventBus);
         this.screenManager.reset();
         this.actorManager.reset();

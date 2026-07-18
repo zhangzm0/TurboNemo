@@ -13,6 +13,11 @@ module.exports = {
         ignored: /node_modules/,
         poll: 1000,
     },
+    module: {
+        rules: [
+            { test: /\.css$/, use: ['style-loader', 'css-loader'] },
+        ],
+    },
     plugins: [
         new HtmlWebpackPlugin({
             template: 'index.html',

@@ -23,7 +23,7 @@ const soundBlocks = {
     'audio__play_audio_and_wait': def({
         args0: [{ type: 'input_value', name: 'audio' }],
         js({values, next}) {
-            return `    { const __ev = __global__.__sound__.playAndWait(${values.audio}); if (__ev) yield { _yieldType: "pause", event: __ev }; }\n` + next;
+            return `    { const __p = __global__.__sound__.playAndWait(${values.audio}); if (__p) yield __p; }\n${next}`;
         },
     }),
     'audio__stop_all_audios': def({
@@ -102,23 +102,23 @@ export default {
                 if (Array.isArray(id)) return null;
                 const s = self._sounds[id];
                 if (s?.ext === 'mid') {
-                    const ev = `midi:ended:${id}:${Date.now()}`;
-                    midiEngine.playMidi(id, null, null, null, () => core.eventBus.emit(ev));
-                    return ev;
+                    return new Promise(resolve => {
+                        midiEngine.playMidi(id, null, null, null, () => resolve());
+                    });
                 }
                 if (!s) return null;
                 const url = resolveAudioUrl(id, s);
-                const audio = new Audio(url);
-                audio.play().catch(() => {});
-                const eventName = `audio:ended:${id}:${Date.now()}`;
-                audio.onended = () => {
-                    const idx = activeAudios.indexOf(audio);
-                    if (idx > -1) activeAudios.splice(idx, 1);
-                    core.eventBus.emit(eventName);
-                };
-                audio.onerror = () => { core.eventBus.emit(eventName); };
-                activeAudios.push(audio);
-                return eventName;
+                return new Promise(resolve => {
+                    const audio = new Audio(url);
+                    audio.play().catch(() => {});
+                    audio.onended = () => {
+                        const idx = activeAudios.indexOf(audio);
+                        if (idx > -1) activeAudios.splice(idx, 1);
+                        resolve();
+                    };
+                    audio.onerror = () => { resolve(); };
+                    activeAudios.push(audio);
+                });
             },
             stopAll(audioId) {
                 if (!audioId || audioId === '__all_sounds') {
@@ -135,6 +135,11 @@ export default {
                 activeAudios.length = 0;
             },
         };
+        core.eventBus.on('tn:restart', () => {
+            activeAudios.forEach(a => { a.pause(); a.currentTime = 0; });
+            activeAudios.length = 0;
+        });
+
         core.globalHook('__sound__', () => soundApi);
     },
 };

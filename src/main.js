@@ -1,4 +1,5 @@
 // src/main.js
+import 'mdui/mdui.css';
 import { NemoPlayer } from './core/nemo-player.js';
 
 const params = new URLSearchParams(window.location.search);
