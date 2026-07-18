@@ -2,6 +2,55 @@
 import { def } from '../../blocks/def.js';
 
 export const sensingBlocks = {
+    // ── 手机摇晃 ──
+    'on_phone_shake': def({
+        isHat: true,
+        js({next}) {
+            if (!next) return `    // on_phone_shake (empty)\n`;
+            return `\
+    while (true) {
+        yield { _yieldType: "pause", event: "phone:shake" };
+${next}    }\n`;
+        },
+    }),
+
+    // ── 手机倾斜方向事件 ──
+    'on_phone_tilt': def({
+        isHat: true,
+        args0: [{ type: 'field_dropdown', name: 'type' }],
+        js({fields, next}) {
+            const dir = fields.type || 'up';
+            if (!next) return `    // on_phone_tilt ${dir} (empty)\n`;
+            return `\
+    while (true) {
+        yield { _yieldType: "pause", event: "phone:tilt:${dir}" };
+${next}    }\n`;
+        },
+    }),
+
+    // ── 手机倾斜分量 ──
+    'get_orientation': def({
+        output: 'Number',
+        args0: [{ type: 'field_dropdown', name: 'axis' }],
+        js({fields}) {
+            return fields.axis === 'X'
+                ? '(__global__.__tilt__?.gamma ?? 0)'
+                : '(__global__.__tilt__?.beta ?? 0)';
+        },
+    }),
+
+    // ── 手机听到声响 ──
+    'on_receive_sound': def({
+        isHat: true,
+        js({next}) {
+            if (!next) return `    // on_receive_sound (empty)\n`;
+            return `\
+    while (true) {
+        yield { _yieldType: "pause", event: "phone:sound" };
+${next}    }\n`;
+        },
+    }),
+
     'mouse_down': def({
         args0: [
             { type: 'field_dropdown', name: 'mouse_event_type' },
@@ -193,10 +242,14 @@ export const sensingBlocks = {
     }),
     'mobile__get_voice_volume': def({
         output: 'Number',
-        js: '0',
+        js: '(__global__.__voice__?.volume ?? 0)',
     }),
     'mobile__enable_voice_detection': def({
-        js({next}) { return next || ''; },
+        args0: [{ type: 'field_dropdown', name: 'state' }],
+        js({fields, next}) {
+            const on = fields.state === 'open';
+            return `    __core__._setVoice(${on});\n` + (next || '');
+        },
     }),
     'user_id_get': def({
         output: 'String',

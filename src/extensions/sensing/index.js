@@ -75,6 +75,9 @@ function getTexturePoints(texture) {
     return points;
 }
 
+// ponytail: module-level cleanup ensures restart doesn't leak voice stream / window listeners
+let _prevCleanup = null;
+
 export default {
     name: 'sensing',
     version: '1.0.0',
@@ -89,6 +92,128 @@ export default {
 
     install(core) {
         timer.install(core);
+
+        // ── cleanup previous instance on restart ──
+        if (_prevCleanup) _prevCleanup();
+
+        // ═══════════════════════════════════════════════
+        // 设备传感：倾斜侦测
+        // ═══════════════════════════════════════════════
+        const tiltData = { beta: 0, gamma: 0 };
+        core.globalHook('__tilt__', () => tiltData);
+
+        const TILT_THRESHOLD = 10;
+        const OFFSET_THRESHOLD = 15;
+        const DEGREE_90 = 90;
+
+        const tiltHandler = (e) => {
+            const { beta, gamma } = e;
+            if (typeof beta !== 'number' || typeof gamma !== 'number') return;
+            tiltData.beta = beta;
+            tiltData.gamma = gamma;
+            // ponytail: direction detection logic from official nemo orientation.ts
+            if (Math.abs(beta) > DEGREE_90 + OFFSET_THRESHOLD) return;
+            if (gamma < -TILT_THRESHOLD && DEGREE_90 - Math.abs(beta) > OFFSET_THRESHOLD)
+                core.eventBus.emit('phone:tilt:left');
+            if (gamma > TILT_THRESHOLD && DEGREE_90 - Math.abs(beta) > OFFSET_THRESHOLD)
+                core.eventBus.emit('phone:tilt:right');
+            if (beta < -TILT_THRESHOLD) core.eventBus.emit('phone:tilt:up');
+            if (beta > TILT_THRESHOLD) core.eventBus.emit('phone:tilt:down');
+        };
+
+        // ═══════════════════════════════════════════════
+        // 设备传感：摇晃侦测
+        // ═══════════════════════════════════════════════
+        let shakeLastTime = 0;
+        let sLX = 0, sLY = 0, sLZ = 0;
+        let shakeHasPrev = false;
+        const shakeSpeed = 800;
+
+        const shakeHandler = (e) => {
+            const acc = e.accelerationIncludingGravity;
+            if (!acc) return;
+            const now = Date.now();
+            if (now - shakeLastTime <= 100) return;
+            const dt = now - shakeLastTime;
+            shakeLastTime = now;
+            const x = acc.x || 0, y = acc.y || 0, z = acc.z || 0;
+            if (shakeHasPrev) {
+                const speed = (Math.abs(x + y + z - sLX - sLY - sLZ) / dt) * 10000;
+                if (speed > shakeSpeed) core.eventBus.emit('phone:shake');
+            } else shakeHasPrev = true;
+            sLX = x; sLY = y; sLZ = z;
+        };
+
+        // ═══════════════════════════════════════════════
+        // 注册传感器监听器
+        // ═══════════════════════════════════════════════
+        const tryAddListeners = () => {
+            if (window.DeviceOrientationEvent) window.addEventListener('deviceorientation', tiltHandler);
+            if (window.DeviceMotionEvent) window.addEventListener('devicemotion', shakeHandler);
+        };
+
+        // iOS 13+: requestPermission() 必须在用户手势中调用
+        const needsPermission = typeof DeviceOrientationEvent?.requestPermission === 'function';
+        if (needsPermission) {
+            window.addEventListener('pointerdown', () => {
+                DeviceOrientationEvent.requestPermission()
+                    .then(s => { if (s === 'granted') tryAddListeners(); })
+                    .catch(() => {});
+            }, { once: true });
+        } else {
+            tryAddListeners();
+        }
+
+        // ═══════════════════════════════════════════════
+        // 声音侦测（Web Audio API）
+        // ═══════════════════════════════════════════════
+        const voiceState = { volume: 0 };
+        let voiceStream = null;
+        let voiceRAF = null;
+        core.globalHook('__voice__', () => voiceState);
+
+        core._setVoice = (on) => {
+            if (on) startVoice();
+            else stopVoice();
+        };
+
+        function startVoice() {
+            if (voiceStream) return;
+            navigator.mediaDevices?.getUserMedia?.({ audio: true })
+                .then(stream => {
+                    voiceStream = stream;
+                    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                    const src = ctx.createMediaStreamSource(stream);
+                    const analyser = ctx.createAnalyser();
+                    analyser.fftSize = 256;
+                    src.connect(analyser);
+                    const buf = new Uint8Array(analyser.frequencyBinCount);
+                    const tick = () => {
+                        if (!voiceStream) return;
+                        analyser.getByteFrequencyData(buf);
+                        const avg = buf.reduce((a, b) => a + b, 0) / buf.length;
+                        voiceState.volume = Math.min(100, Math.round(avg * 1.5));
+                        if (voiceState.volume > 20) core.eventBus.emit('phone:sound');
+                        voiceRAF = requestAnimationFrame(tick);
+                    };
+                    voiceRAF = requestAnimationFrame(tick);
+                })
+                .catch(() => {});
+        }
+
+        function stopVoice() {
+            voiceState.volume = 0;
+            if (voiceRAF) cancelAnimationFrame(voiceRAF);
+            voiceRAF = null;
+            if (voiceStream) voiceStream.getTracks().forEach(t => t.stop());
+            voiceStream = null;
+        }
+
+        _prevCleanup = () => {
+            stopVoice();
+            window.removeEventListener('deviceorientation', tiltHandler);
+            window.removeEventListener('devicemotion', shakeHandler);
+        };
 
         // color collision detection for bump_into_color block
         // One shared RenderTexture, resized as needed (matches official approach)

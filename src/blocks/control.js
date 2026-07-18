@@ -95,7 +95,7 @@ ${statements.DO}        yield __core__._YIELD_FRAME;
     {
         let __warpSteps = 0;
 ${body.replace(/yield __core__\._YIELD_FRAME;/g,
-    `if (++__warpSteps >= 200) { __warpSteps = 0; yield __core__._YIELD_FRAME; }`
+    `if (++__warpSteps >= 100) { __warpSteps = 0; yield __core__._YIELD_FRAME; }`
 )}
     }
     // warp end
