@@ -166,7 +166,7 @@ class Scheduler {
 
             // frame / wait / pause 挂起回 tick 循环
             if (value?._yieldType === 'frame') return;
-            if (value?._yieldType === 'wait') { task.waitFrames = Math.max(0, value.frames); return; }
+            if (value?._yieldType === 'wait') { task.waitFrames = Math.max(1, value.frames); return; }
             if (value?._yieldType === 'pause') {
                 task.state = 'paused';
                 this._running = this._running.filter(t => t.taskId !== task.taskId);
