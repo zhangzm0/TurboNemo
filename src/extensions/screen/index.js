@@ -18,7 +18,7 @@ export default {
             const bg = screen.bg;
             for (const sid of (d.styles || [])) {
                 const tex2 = core.assetLoader.getTexture(sid);
-                if (tex2) bg.addCostume(tex2);
+                if (tex2) bg.addCostume(tex2, data.styles?.[sid]?.name || '');
             }
             if (d.styles && d.current_style_id) {
                 bg.setCostume(d.styles.indexOf(d.current_style_id) + 1);

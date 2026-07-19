@@ -1,7 +1,49 @@
-import { ColorMatrixFilter } from '@pixi/filter-color-matrix';
+function createDisplacementMap(size = 512) {
+    const canvas = document.createElement('canvas');
+    canvas.width = size;
+    canvas.height = size;
+    const ctx = canvas.getContext('2d');
+    const imgData = ctx.createImageData(size, size);
+    const data = imgData.data;
+    const cx = size / 2;
+    const cy = size / 2;
+    const maxDist = Math.sqrt(cx * cx + cy * cy);
+    for (let y = 0; y < size; y++) {
+        for (let x = 0; x < size; x++) {
+            const idx = (y * size + x) * 4;
+            const dx = x - cx;
+            const dy = y - cy;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            if (dist === 0) {
+                data[idx] = 128;
+                data[idx + 1] = 128;
+                data[idx + 2] = 0;
+                data[idx + 3] = 255;
+                continue;
+            }
+            const nx = dx / dist;
+            const ny = dy / dist;
+            const t = Math.min(dist / maxDist, 1);
+            const strength = t;
+            data[idx] = 128 + Math.round(nx * 127 * strength);
+            data[idx + 1] = 128 + Math.round(ny * 127 * strength);
+            data[idx + 2] = 0;
+            data[idx + 3] = 255;
+        }
+    }
+    ctx.putImageData(imgData, 0, 0);
+    return canvas;
+}
+
+let _displacementTexture = null;
+function getDisplacementTexture() {
+    if (_displacementTexture) return _displacementTexture;
+    const canvas = createDisplacementMap(512);
+    _displacementTexture = PIXI.Texture.from(canvas);
+    return _displacementTexture;
+}
 
 const FX = {
-    // pixelate: grid-based pixelation effect
     pixelate: `
         precision mediump float;
         varying vec2 vTextureCoord;
@@ -14,7 +56,6 @@ const FX = {
             gl_FragColor = texture2D(uSampler, c);
         }
     `,
-    // twist/whirl: radial swirl distortion
     twist: `
         precision mediump float;
         varying vec2 vTextureCoord;
@@ -40,31 +81,8 @@ const FX = {
             }
         }
     `,
-    // fisheye: barrel/pincushion radial distortion
-    fisheye: `
-        precision mediump float;
-        varying vec2 vTextureCoord;
-        uniform sampler2D uSampler;
-        uniform float amount;
-        void main() {
-            vec2 uv = vTextureCoord;
-            vec2 center = vec2(0.5, 0.5);
-            vec2 offset = uv - center;
-            float dist = length(offset);
-            float maxDist = sqrt(0.5);
-            float norm = dist / maxDist;
-            float scale = 1.0 + (amount / 100.0) * norm * norm;
-            vec2 mapped = center + offset * scale;
-            if (mapped.x < 0.0 || mapped.x > 1.0 || mapped.y < 0.0 || mapped.y > 1.0) {
-                gl_FragColor = vec4(0.0, 0.0, 0.0, 0.0);
-            } else {
-                gl_FragColor = texture2D(uSampler, mapped);
-            }
-        }
-    `,
 };
 
-// effect type codes from BCM: 0=hue,1=alpha,2=brightness,3=pixelate,4=displacement(fisheye),5=twist,6=saturate(mosaic)
 export class Effects {
     constructor(sprite) {
         this._sprite = sprite;
@@ -76,11 +94,17 @@ export class Effects {
         if (this._filters[type]) return this._filters[type];
         let f;
         switch (type) {
-            case '0': f = new ColorMatrixFilter(); break; // hue
-            case '2': f = new ColorMatrixFilter(); break; // brightness
-            case '6': f = new ColorMatrixFilter(); break; // saturate
+            case '0': f = new PIXI.filters.ColorMatrixFilter(); break;
+            case '2': f = new PIXI.filters.ColorMatrixFilter(); break;
+            case '6': f = new PIXI.filters.ColorMatrixFilter(); break;
             case '3': f = new PIXI.Filter(undefined, FX.pixelate, { size: 0 }); break;
-            case '4': f = new PIXI.Filter(undefined, FX.fisheye, { amount: 0 }); break;
+            case '4':
+                {
+                    const tex = getDisplacementTexture();
+                    f = new PIXI.filters.DisplacementFilter(tex);
+                    f.scale.set(0, 0);
+                }
+                break;
             case '5': f = new PIXI.Filter(undefined, FX.twist, { radius: 0.5, angle: 0 }); break;
             default: return null;
         }
@@ -98,7 +122,6 @@ export class Effects {
 
     set(type, val) {
         if (type === '1') { this._sprite.alpha = Math.max(0, Math.min(1, (100 - val) / 100)); return; }
-        // saturate/mosaic: internal value is negated; user 0-100 maps to internal 0..-100
         if (type === '6') val = Math.max(-100, Math.min(0, -val));
         const f = this._filter(type);
         if (!f) return;
@@ -114,7 +137,6 @@ export class Effects {
             return;
         }
         const cur = this._vals[type] || 0;
-        // saturate/mosaic: internal value is negative of user's, so subtract
         if (type === '6') {
             this.set(type, cur - val);
         } else {
@@ -138,16 +160,18 @@ export class Effects {
                   ]; }
                 break;
             case '3': f.uniforms.size = v; break;
-            case '4': f.uniforms.amount = v; break;
+            case '4':
+                {
+                    const scale = v * 2;
+                    f.scale.set(scale, scale);
+                }
+                break;
             case '5': f.uniforms.radius = 0.5; f.uniforms.angle = v * 0.05; break;
         }
     }
 
-    // copy effect values from another Effects instance (used when cloning actors)
     cloneTo(targetEffects) {
-        // copy alpha/ghost
         targetEffects._sprite.alpha = this._sprite.alpha;
-        // copy filter-based effects (skip default values)
         for (const [type, val] of Object.entries(this._vals)) {
             const def = type === '2' ? 100 : 0;
             if (val !== def) targetEffects.set(type, val);

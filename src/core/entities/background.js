@@ -15,8 +15,8 @@ class Background {
     __addX(dx) { this.sprite.tilePosition.x += dx; }
     __addY(dy) { this.sprite.tilePosition.y -= dy; }
 
-    addCostume(texture) {
-        this.costumes.push({ texture, cp: { x: 0, y: 0 } });
+    addCostume(texture, name = '') {
+        this.costumes.push({ texture, cp: { x: 0, y: 0 }, name });
     }
 
     setCostume(index) {
@@ -30,6 +30,11 @@ class Background {
         const total = this.costumes.length;
         if (total === 0) return;
         this.setCostume((this.currentCostume - 1 + dir + total) % total + 1);
+    }
+
+    getCostumeName() {
+        const data = this.costumes[this.currentCostume - 1];
+        return data?.name || '';
     }
 }
 

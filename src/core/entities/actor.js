@@ -38,6 +38,17 @@ class Actor {
         if (this._costumeCount === 0) return;
         this.setCostume((this.currentCostume - 1 + dir + this._costumeCount) % this._costumeCount + 1);
     }
+
+    getCostumeName() {
+        if (!this._costumeKeys) {
+            this._costumeKeys = Object.keys(this.costumes);
+            this._costumeCount = this._costumeKeys.length;
+        }
+        if (this._costumeCount === 0) return '';
+        const id = this._costumeKeys[this.currentCostume - 1];
+        if (!id) return '';
+        return this.costumes[id]?.name || '';
+    }
 }
 
 export { Actor };

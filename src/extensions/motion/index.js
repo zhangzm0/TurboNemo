@@ -108,6 +108,20 @@ export default {
             ],
             js: 'yield* self.__glideTo({time}, {x}, -({y}))',
         }),
+        'self_glide_position_x': def({
+            args0: [
+                { type: 'input_value', name: 'time' },
+                { type: 'input_value', name: 'value' },
+            ],
+            js: 'yield* self.__glideBy({time}, {value}, 0)',
+        }),
+        'self_glide_position_y': def({
+            args0: [
+                { type: 'input_value', name: 'time' },
+                { type: 'input_value', name: 'value' },
+            ],
+            js: 'yield* self.__glideBy({time}, 0, -({value}))',
+        }),
         'self_move_specify': def({
             args0: [{ type: 'field_dropdown', name: 'target' }],
             js({fields, next}) {
@@ -167,6 +181,30 @@ export default {
             }
             actor.sprite.x = x;
             actor.sprite.y = y;
+            core.eventBus.emit(`actor:moved:${actor.name}`, actor);
+        });
+        core.selfHook('__glideBy', (actor) => function*(time, dx, dy) {
+            const startX = actor.sprite.x;
+            const startY = actor.sprite.y;
+            const targetX = startX + dx;
+            const targetY = startY + dy;
+            if (time <= 0) {
+                actor.sprite.x = targetX;
+                actor.sprite.y = targetY;
+                core.eventBus.emit(`actor:moved:${actor.name}`, actor);
+                return;
+            }
+            const startTime = performance.now();
+            let elapsed = 0;
+            while (elapsed < time) {
+                elapsed = (performance.now() - startTime) / 1000;
+                const t = Math.min(elapsed / time, 1);
+                actor.sprite.x = startX + dx * t;
+                actor.sprite.y = startY + dy * t;
+                yield;
+            }
+            actor.sprite.x = targetX;
+            actor.sprite.y = targetY;
             core.eventBus.emit(`actor:moved:${actor.name}`, actor);
         });
 

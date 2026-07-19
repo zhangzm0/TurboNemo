@@ -40,7 +40,7 @@ export default {
                 for (const sid of (actorData.styles || [])) {
                     const tex2 = core.assetLoader.getTexture(sid);
                     const def = data.styles?.[sid];
-                    if (tex2) actor.costumes[sid] = { texture: tex2, cp: def?.center_point || { x: 0, y: 0 } };
+                    if (tex2) actor.costumes[sid] = { texture: tex2, cp: def?.center_point || { x: 0, y: 0 }, name: def?.name || '' };
                 }
                 if (styleId && actorData.styles) actor.setCostume(actorData.styles.indexOf(styleId) + 1);
                 screen.actorLayer.addChild(sprite);

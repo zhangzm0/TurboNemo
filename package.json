@@ -26,7 +26,7 @@
   "dependencies": {
     "@tonejs/midi": "^2.0.28",
     "mdui": "^2.1.4",
-    "pixi.js-legacy": "^5.3.12",
+    "pixi.js-legacy": "^6.5.10",
     "puppeteer-core": "^25.1.0",
     "tone": "^15.1.22"
   }

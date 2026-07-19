@@ -84,7 +84,7 @@ ${next}    }\n`;
             if (attr == '1') return R(`-(${actorExpr}?.sprite?.y ?? ${bgExpr}?.sprite?.tilePosition?.y ?? 0)`);
             if (attr == '2') return R(`${actorExpr}?.currentCostume ?? ${bgExpr}?.currentCostume ?? 0`);
             if (attr == '3') return R(`-(${actorExpr}?.sprite?.rotation ?? ${bgExpr}?.sprite?.rotation ?? 0) * 180 / Math.PI`);
-            if (attr == '4') return R(`(${actorExpr}?.sprite?.scale?.x ?? ${bgExpr}?.sprite?.scale?.x ?? 1) * 100`);
+            if (attr == '4') return `(${actorExpr}?.getCostumeName?.() ?? ${bgExpr}?.getCostumeName?.() ?? '')`;
             if (attr == '5') return R(`(${actorExpr}?.sprite?.scale?.x ?? ${bgExpr}?.sprite?.scale?.x ?? 1) * 100`);
             return '0';
         },

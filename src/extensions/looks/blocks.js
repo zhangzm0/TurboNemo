@@ -31,7 +31,7 @@ export const looksBlocks = {
     'self_flip': def({
         args0: [{ type: 'field_dropdown', name: 'options' }],
         js({fields, next}) {
-            const axis = fields.options === 'HORIZONTAL' ? 'y' : 'x';
+            const axis = fields.options === '0' ? 'y' : 'x';
             return `    self.sprite.scale.${axis} *= -1;\n` + next;
         },
     }),
