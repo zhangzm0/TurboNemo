@@ -29,8 +29,16 @@ export default {
     install(core) {
         const _orig = core.screenManager.switchTo.bind(core.screenManager);
         core.screenManager.switchTo = function(index) {
+            const fromScreen = core.screenManager.getCurrent();
             _orig(index, (fromName, toName) => {
                 core.eventBus.emit('screen:switched', { from: fromName, to: toName });
+                // 暂停旧场景的任务（保留上下文，start_on_click 任务除外，它们跨场景持续运行）
+                if (fromScreen && fromScreen.name !== toName) {
+                    const entityNames = [fromScreen.name, ...(fromScreen.taskIds || [])];
+                    for (const entityName of entityNames) {
+                        core.scheduler.pauseEntityTasksExcept(entityName, 'start_on_click');
+                    }
+                }
                 core.eventBus.emit(`screen:activated:${toName}`);
                 const to = this._current || this.list.find(s => s.name === toName);
                 if (to && to.taskIds) {
@@ -39,9 +47,7 @@ export default {
                     }
                 }
                 if (to) {
-                    // Resume scene-level scripts by screen name
                     core.scheduler.resumeEntityTasks(to.name);
-                    // Resume actor-level scripts
                     if (to.taskIds) {
                         for (const actorName of to.taskIds) {
                             core.scheduler.resumeEntityTasks(actorName);

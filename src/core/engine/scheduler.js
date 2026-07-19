@@ -106,6 +106,28 @@ class Scheduler {
         }
     }
 
+    pauseEntityTasks(entityName) {
+        for (const task of this._running) {
+            if (task.entityName === entityName) {
+                task.state = 'paused';
+                task._eventWait = false;
+            }
+        }
+        this._running = this._running.filter(t => t.state !== 'paused');
+    }
+
+    pauseEntityTasksExcept(entityName, excludeHatType) {
+        for (const task of this._running) {
+            if (task.entityName === entityName) {
+                // 排除指定 hatType 的任务（如 start_on_click 任务跨场景持续运行）
+                if (task._restart?.hatType === excludeHatType) continue;
+                task.state = 'paused';
+                task._eventWait = false;
+            }
+        }
+        this._running = this._running.filter(t => t.state !== 'paused');
+    }
+
     _processTask(task) {
         const genStack = task._genStack;
         while (genStack.length > 0) {
