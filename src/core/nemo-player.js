@@ -175,6 +175,7 @@ class NemoPlayer {
         const globalObj = {};
         for (const [name, factory] of Object.entries(this._globalHooks))
             globalObj[name] = factory();
+        this._globalObj = globalObj;
 
         const nameMap = {};
         if (bcm.variable?.variable_dict) {
