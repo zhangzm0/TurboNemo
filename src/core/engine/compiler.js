@@ -9,6 +9,7 @@ class Compiler {
     compile(blocksXML, entityName, target = 'actor', nameMap = {}) {
         if (!blocksXML) return [];
         this.target = target;
+        this._entityName = entityName;
         this._stepIdx = 0;
         this._blockDebugList = [];
         blocksXML = blocksXML.replace(/"([a-zA-Z][a-zA-Z0-9_]*=)/g, '" $1');
@@ -115,7 +116,7 @@ ${body}
 
     // Blockly-like: args0 declares inputs, js is a template string or function
     _compileStructured(def, blockEl) {
-        const ctx = { values: {}, fields: {}, statements: {}, next: '', target: this.target, blockEl };
+        const ctx = { values: {}, fields: {}, statements: {}, next: '', target: this.target, blockEl, entityName: this._entityName || '?' };
         // Phase 1: compile inputs declared in args0
         for (const arg of def.args0 || []) {
             if (!arg.name) continue;

@@ -1,13 +1,25 @@
 import { def } from '../../../blocks/def.js';
 
+// ponytail: 校验变量 ID,作品里删变量后残留的"幽灵引用"会留下 "?" 等非 ID 文本,
+// 原样拼进 self._vars['...'] 生成非法 JS。ID 合法格式: UUID 或 Nemo 短 ID(字母数字 ≥6位)。
+const _VAR_ID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$|^[A-Za-z0-9]{6,}$/;
+function varId(raw, entityName) {
+    const id = (raw || '').replace(/'/g, "\\'");
+    if (!_VAR_ID_RE.test(id)) {
+        console.warn(`[TurboNemo] 非法变量 ID ${JSON.stringify(raw)},角色 ${entityName},已 fallback 到 __ghost_var__`);
+        return '__ghost_var__';
+    }
+    return id;
+}
+
 export const varBlocks = {
     'variables_get': def({
         args0: [
             { type: 'field_dropdown', name: 'VAR' },
         ],
         output: 'Number',
-        js({ fields }) {
-            const id = fields.VAR.replace(/'/g, "\\'");
+        js({ fields, entityName }) {
+            const id = varId(fields.VAR, entityName);
             return `(self._vars['${id}']?.value ?? 0)`;
         },
     }),
@@ -16,8 +28,8 @@ export const varBlocks = {
             { type: 'field_dropdown', name: 'VAR' },
             { type: 'input_value', name: 'VALUE' },
         ],
-        js({ fields, values, next }) {
-            const id = fields.VAR.replace(/'/g, "\\'");
+        js({ fields, values, next, entityName }) {
+            const id = varId(fields.VAR, entityName);
             return `    if (!self._vars['${id}']) self._vars['${id}'] = { value: 0 };\n    self._vars['${id}'].value = ${values.VALUE};\n` + next;
         },
     }),
@@ -29,8 +41,8 @@ export const varBlocks = {
             { type: 'input_value', name: 'n' },
             { type: 'input_value', name: 'VALUE' },
         ],
-        js({ fields, values, next }) {
-            const id = (fields.VAR || fields.valname || '').replace(/'/g, "\\'");
+        js({ fields, values, next, entityName }) {
+            const id = varId(fields.VAR || fields.valname || '', entityName);
             const method = fields.method || 'increase';
             let val = values.n || values.VALUE || '0';
             if (method === 'decrease') val = `-(${val})`;
@@ -42,9 +54,9 @@ export const varBlocks = {
             { type: 'field_dropdown', name: 'FUNC' },
             { type: 'field_dropdown', name: 'VAR' },
         ],
-        js({ fields, next }) {
+        js({ fields, next, entityName }) {
             const func = fields.FUNC;
-            const id = fields.VAR.replace(/'/g, "\\'");
+            const id = varId(fields.VAR, entityName);
             if (func === 'show') return `    __varDisplay__.show('${id}');\n` + next;
             return `    __varDisplay__.hide('${id}');\n` + next;
         },
@@ -54,8 +66,8 @@ export const varBlocks = {
             { type: 'field_dropdown', name: 'VAR' },
         ],
         output: 'Number',
-        js({ fields }) {
-            const id = fields.VAR.replace(/'/g, "\\'");
+        js({ fields, entityName }) {
+            const id = varId(fields.VAR, entityName);
             return `(self._vars['${id}']?.value ?? 0)`;
         },
     }),
@@ -64,9 +76,9 @@ export const varBlocks = {
             { type: 'field_dropdown', name: 'VAR' },
             { type: 'input_value', name: 'VALUE' },
         ],
-        js({ fields, values, next }) {
-            const id = fields.VAR.replace(/'/g, "\\'");
-            return `    if (!self._vars['${id}']) self._vars['${id}'] = { value: 0 };\n    self._vars['${id}'].value = ${values.VALUE};\n` + next;
+        js({ fields, values, next, entityName }) {
+            const id = varId(fields.VAR, entityName);
+            return `    if(!self._vars['${id}']) self._vars['${id}'] = { value: 0 };\n    self._vars['${id}'].value = ${values.VALUE};\n` + next;
         },
     }),
     'change_cloud_variable': def({
@@ -75,8 +87,8 @@ export const varBlocks = {
             { type: 'field_dropdown', name: 'method' },
             { type: 'input_value', name: 'VALUE' },
         ],
-        js({ fields, values, next }) {
-            const id = fields.VAR.replace(/'/g, "\\'");
+        js({ fields, values, next, entityName }) {
+            const id = varId(fields.VAR, entityName);
             const method = fields.method || 'increase';
             let val = values.VALUE || '0';
             if (method === 'decrease') val = `-(${val})`;
@@ -88,9 +100,9 @@ export const varBlocks = {
             { type: 'field_dropdown', name: 'method' },
             { type: 'field_dropdown', name: 'VAR' },
         ],
-        js({ fields, next }) {
+        js({ fields, next, entityName }) {
             const func = fields.method;
-            const id = fields.VAR.replace(/'/g, "\\'");
+            const id = varId(fields.VAR, entityName);
             if (func === 'show') return `    __varDisplay__.show('${id}');\n` + next;
             return `    __varDisplay__.hide('${id}');\n` + next;
         },
@@ -100,8 +112,8 @@ export const varBlocks = {
             { type: 'field_dropdown', name: 'VAR' },
             { type: 'field_dropdown', name: 'direction' },
         ],
-        js({ fields, next }) {
-            const id = fields.VAR.replace(/'/g, "\\'");
+        js({ fields, next, entityName }) {
+            const id = varId(fields.VAR, entityName);
             const dir = fields.direction || 'positive';
             return `    __ranking__.show('${id}', '${dir}');\n` + next;
         },

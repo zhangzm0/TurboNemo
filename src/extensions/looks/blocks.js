@@ -15,7 +15,14 @@ export const looksBlocks = {
     'styles_index_get': def({
         output: 'Number',
         args0: [{ type: 'field_input', name: 'index' }],
-        js: '{$index}',
+        js({ fields, entityName }) {
+            // ponytail: 幽灵字段可能含 "?" 等非数字,Number("?")=NaN 会崩。合法正整数直接用,否则 fallback 0 并告警。
+            if (!/^\d+$/.test((fields.index || '').trim())) {
+                console.warn(`[TurboNemo] 非法造型索引 ${JSON.stringify(fields.index)},角色 ${entityName || '?'},已 fallback 到 0`);
+                return '0';
+            }
+            return fields.index.trim();
+        },
     }),
     'set_costume_by_index': def({
         args0: [{ type: 'input_value', name: 'index' }],
